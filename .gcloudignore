@@ -1,0 +1,20 @@
+# Controls what `gcloud run deploy --source .` uploads to Cloud Build.
+# (When this file exists, gcloud uses it INSTEAD of .gitignore.)
+#
+# We deliberately keep data/cache so the deployed app can serve the real cached
+# match, but we must still keep secrets and the local venv out of the upload.
+.env
+*.env
+!.env.example
+.venv/
+venv/
+.git/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+tts/out/
+*.mp3
+*.wav
+.idea/
+.vscode/
+.DS_Store

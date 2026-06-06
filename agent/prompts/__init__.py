@@ -52,21 +52,44 @@ LANGUAGE_NAMES = {
     "uk-UA": "Ukrainian (Ukraine)", "vi-VN": "Vietnamese (Vietnam)",
 }
 
+LANGUAGE_ALIASES = {
+    "en": "en-US",
+    "es": "es-ES",
+    "id": "id-ID",
+    "fr": "fr-FR",
+    "pt": "pt-BR",
+    "de": "de-DE",
+}
+
+SUPPORTED_LANGUAGE_CODES = tuple(sorted({*LANGUAGE_NAMES, *LANGUAGE_ALIASES}))
+
 _ROLE = (
     "You are MlangCast, a live football commentator generating spoken play-by-play "
     "for a match that would otherwise have no commentary at all."
-    "Your goal is not to replace human commentary, but to fill in the gaps for" 
+    " Your goal is not to replace human commentary, but to fill in the gaps for "
     "lower-profile matches that would otherwise go unnoticed."
 )
 
 
 def _read(name: str) -> str:
+    """Read one prompt block from disk so system_prompt can compose it."""
     return (_DIR / name).read_text(encoding="utf-8").strip()
+
+
+def normalize_language(language: str = "en") -> str:
+    """Return the canonical language code used internally by the agent."""
+    return LANGUAGE_ALIASES.get(language, language)
+
+
+def language_display_name(language: str = "en") -> str:
+    """Return a human-readable language name for aliases and full BCP-47 codes."""
+    normalized = normalize_language(language)
+    return LANGUAGE_NAMES.get(normalized, language)
 
 
 def system_prompt(language: str = "en") -> str:
     """Compose the full system instruction for a given target language."""
-    lang_name = LANGUAGE_NAMES.get(language, language)
+    lang_name = language_display_name(language)
     blocks = [
         _ROLE,
         _read("faithfulness.md"),

@@ -45,6 +45,7 @@ SKIP_TYPES = {"Ball Receipt*", "Pressure", "Carry", "Half Start", "Half End"}
 # Load events                                                                 #
 # --------------------------------------------------------------------------- #
 def load_events(match_id: Optional[int]) -> list[dict]:
+    """Load the bundled sample or a cached real match for the Day 1 spike."""
     if match_id is None:
         return json.loads(SAMPLE.read_text(encoding="utf-8"))
     # Reuse the Day 1 loader's cache layout.
@@ -130,6 +131,7 @@ Commentary ({lang_name}):"""
 # Gemini call (standalone — Day 1 has no shared client yet)                   #
 # --------------------------------------------------------------------------- #
 def call_gemini(prompt: str) -> str:
+    """Send the assembled Day 1 prompt to Gemini and return the text response."""
     try:
         from google import genai
     except ImportError as exc:  # pragma: no cover
@@ -166,6 +168,7 @@ If no  -> NO-GO: iterate on the prompt before building the pipeline.
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    """Run the Day 1 go/no-go CLI from event selection through commentary output."""
     parser = argparse.ArgumentParser(description="Day 1 go/no-go commentary spike.")
     parser.add_argument("--match-id", type=int, default=None,
                         help="Use a cached match instead of the bundled sample.")
@@ -179,12 +182,13 @@ def main(argv: Optional[list[str]] = None) -> int:
                         help="Print the assembled prompt without calling Gemini (offline).")
     args = parser.parse_args(argv)
 
-    # Try to load a .env if python-dotenv is available (best-effort, optional).
-    try:
-        from dotenv import load_dotenv
-        load_dotenv(REPO / ".env")
-    except ImportError:
-        pass
+    # Try to load local API settings only when a real Gemini call is requested.
+    if not args.mock:
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(REPO / ".env")
+        except ImportError:
+            pass
 
     events = select_window(
         load_events(args.match_id), args.start, args.count, dense=not args.all_types

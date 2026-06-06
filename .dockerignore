@@ -1,0 +1,20 @@
+# Keep secrets, local envs, and dev cruft out of the image.
+# NOTE: data/cache is intentionally NOT excluded, so the deployed demo can use
+# the cached real match (the WC2022 final), not just the bundled sample.
+.env
+*.env
+!.env.example
+.venv/
+venv/
+.git/
+.gitignore
+__pycache__/
+*.py[cod]
+.pytest_cache/
+tts/out/
+*.mp3
+*.wav
+tests/
+.idea/
+.vscode/
+.DS_Store

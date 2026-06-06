@@ -15,7 +15,7 @@ Two backends:
 
 CLI:
     python data/loader.py --list-competitions
-    python data/loader.py --list-matches --competition-id 43 --season-id 106
+    python data/loader.py --list-matches --competition-id 43 --season-id 106 # FIFA World Cup Final 2022
     python data/loader.py --match-id 3869685
     python data/loader.py                       # downloads the default demo match
 
@@ -65,6 +65,7 @@ STATSBOMB_ATTRIBUTION = (
 # Low-level fetch                                                             #
 # --------------------------------------------------------------------------- #
 def _get_json(url: str) -> Any:
+    """Fetch one StatsBomb Open Data JSON document and return the decoded body."""
     resp = requests.get(url, timeout=30)
     resp.raise_for_status()
     return resp.json()
@@ -121,10 +122,12 @@ def find_match_meta(
 # Cache                                                                       #
 # --------------------------------------------------------------------------- #
 def match_dir(match_id: int) -> Path:
+    """Return the cache directory path for one StatsBomb match id."""
     return CACHE_DIR / str(match_id)
 
 
 def _write_json(path: Path, payload: Any) -> None:
+    """Write a payload as pretty UTF-8 JSON for repeatable local cache files."""
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -172,6 +175,7 @@ def load_cached_events(match_id: int) -> list[dict]:
 
 
 def load_cached_meta(match_id: int) -> Optional[dict]:
+    """Read cached match metadata when available, otherwise return None."""
     path = match_dir(match_id) / "meta.json"
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
@@ -195,6 +199,7 @@ def statsbombpy_events(match_id: int):
 # CLI                                                                         #
 # --------------------------------------------------------------------------- #
 def _print_competitions() -> None:
+    """Print every available StatsBomb competition/season for CLI discovery."""
     for c in list_competitions():
         print(
             f"comp {c['competition_id']:>4} / season {c['season_id']:>4}  "
@@ -203,6 +208,7 @@ def _print_competitions() -> None:
 
 
 def _print_matches(competition_id: int, season_id: int) -> None:
+    """Print every match in one competition/season for CLI discovery."""
     for m in list_matches(competition_id, season_id):
         home = m.get("home_team", {}).get("home_team_name", "?")
         away = m.get("away_team", {}).get("away_team_name", "?")
@@ -213,6 +219,7 @@ def _print_matches(competition_id: int, season_id: int) -> None:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    """Run the Day 1 loader CLI for discovery or match caching."""
     parser = argparse.ArgumentParser(description="Download/cache a StatsBomb open-data match.")
     parser.add_argument("--match-id", type=int, default=None, help="Match to download and cache.")
     parser.add_argument("--competition-id", type=int, default=None)

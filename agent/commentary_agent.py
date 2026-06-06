@@ -23,8 +23,9 @@ import sys
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Iterable, Iterator, Optional
+from typing import Iterable, Iterator, Optional
 
+from agent.mcp_client import NoOpContextClient
 from agent import prompts
 
 REPO = Path(__file__).resolve().parent.parent
@@ -114,10 +115,12 @@ class MatchState:
     recent_lines: deque = field(default_factory=lambda: deque(maxlen=4))
 
     def match_seconds(self) -> int:
+        """Return the current match clock as total seconds for pacing math."""
         # StatsBomb `minute` is continuous across halves, so this is monotonic.
         return self.minute * 60 + self.second
 
     def scoreline(self) -> str:
+        """Return a display-ready scoreline from the tracked match state."""
         if not self.score:
             return "0-0"
         h = self.score.get(self.home_team, 0)
@@ -125,6 +128,7 @@ class MatchState:
         return f"{self.home_team} {h}-{a} {self.away_team}"
 
     def as_prompt_dict(self) -> dict:
+        """Serialize the state fields that are safe to send to the model."""
         return {
             "clock": f"{self.minute:02d}:{self.second:02d}",
             "period": self.period,
@@ -145,18 +149,22 @@ class CommentaryAgent:
         model: Optional[str] = None,
         mock: bool = False,
         client=None,
+        context_client=None,
         home_team: str = "",
         away_team: str = "",
     ):
-        self.language = language
+        """Create an agent with optional mock mode and an injectable Gemini client."""
+        self.language = prompts.normalize_language(language)
         self.model = model or os.getenv("GEMINI_MODEL", "gemini-3-pro")
         self.mock = mock
         self._client = client
+        self.context_client = context_client or NoOpContextClient()
         self.state = MatchState(home_team=home_team, away_team=away_team)
-        self._system = prompts.system_prompt(language)
+        self._system = prompts.system_prompt(self.language)
 
     # -- match-state bookkeeping -------------------------------------------- #
     def _advance_clock(self, ev: dict) -> None:
+        """Move the tracked clock/team names forward using the incoming event."""
         self.state.period = ev.get("period", self.state.period)
         self.state.minute = ev.get("minute", self.state.minute)
         self.state.second = ev.get("second", self.state.second)
@@ -168,6 +176,7 @@ class CommentaryAgent:
             self.state.away_team = team
 
     def _apply_score(self, ev: dict) -> None:
+        """Update the tracked score for goals explicitly present in the event."""
         etype = ev.get("type", {}).get("name", "")
         team = ev.get("team", {}).get("name", "")
         if etype == "Shot" and (ev.get("shot", {}).get("outcome") or {}).get("name") == "Goal":
@@ -176,6 +185,7 @@ class CommentaryAgent:
             self.state.score[team] = self.state.score.get(team, 0) + 1
 
     def should_comment(self, ev: dict) -> bool:
+        """Decide whether an event is important enough to generate commentary."""
         etype = ev.get("type", {}).get("name", "")
         if etype in SKIP_TYPES:
             return False
@@ -192,13 +202,19 @@ class CommentaryAgent:
     # -- Day 3 hook: MCP context retrieval (stub for now) ------------------- #
     def fetch_context(self, ev: dict) -> dict:
         """
-        Placeholder for Day 3. Will call the MongoDB MCP server for player/team/
-        standings context. Returns {} so Day 2 runs without it.
+        Fetch optional Day 3 context for the current event through the MCP seam.
+
+        The default context client returns {}, so Day 2 runs without MongoDB.
         """
-        return {}
+        try:
+            return self.context_client.fetch_event_context(ev, self.state.as_prompt_dict())
+        except Exception as exc:
+            print(f"[agent] context error: {exc}", file=sys.stderr)
+            return {}
 
     # -- generation --------------------------------------------------------- #
     def _client_or_build(self):
+        """Return the injected Gemini client or lazily build one on first use."""
         if self._client is None:
             self._client = build_gemini_client()
         return self._client
@@ -218,6 +234,7 @@ class CommentaryAgent:
         return f"{tag} {etype} — {team}{('/' + player) if player else ''}."
 
     def _generate(self, ev: dict) -> Optional[str]:
+        """Generate one commentary line, using mock output or Gemini."""
         context = self.fetch_context(ev)
         user = prompts.build_event_prompt(ev, self.state.as_prompt_dict(), context)
         if self.mock:
@@ -236,7 +253,19 @@ class CommentaryAgent:
             )
             text = (resp.text or "").strip()
         except Exception as exc:  # keep the live loop alive on any API hiccup
-            print(f"[agent] generation error: {exc}", file=sys.stderr)
+            msg = str(exc)
+            if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
+                # Free-tier Gemini allows only a few requests/minute; one call per
+                # commentary-worthy event blows past it. Collapse the flood into a
+                # single concise hint instead of dumping the full quota JSON.
+                if not getattr(self, "_rate_limit_warned", False):
+                    print("[agent] Gemini rate limit hit (HTTP 429). The free tier is "
+                          "very low (~5 req/min). Use --mock for the full match, demo "
+                          "real Gemini on a short clip/the sample, or enable billing.",
+                          file=sys.stderr)
+                    self._rate_limit_warned = True
+            else:
+                print(f"[agent] generation error: {msg[:200]}", file=sys.stderr)
             return None
         if not text or text.upper().startswith("NO_COMMENT"):
             return None
@@ -290,6 +319,7 @@ def build_gemini_client():
 # CLI                                                                         #
 # --------------------------------------------------------------------------- #
 def _load_events(match_id: Optional[int], use_sample: bool) -> list[dict]:
+    """Load bundled sample events or a previously cached real match."""
     if use_sample or match_id is None:
         return json.loads((REPO / "spike" / "sample_events.json").read_text(encoding="utf-8"))
     cache = REPO / "data" / "cache" / str(match_id) / "events.json"
@@ -302,29 +332,31 @@ def _load_events(match_id: Optional[int], use_sample: bool) -> list[dict]:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    """Run the Day 2 CLI demo by wiring cached/sample events into the agent."""
     parser = argparse.ArgumentParser(description="Day 2 commentary loop (replayer + agent).")
     parser.add_argument("--match-id", type=int, default=None)
     parser.add_argument("--sample", action="store_true", help="Use bundled sample events.")
     parser.add_argument("--language", default=os.getenv("DEFAULT_LANGUAGE", "en"),
-                        choices=sorted(prompts.LANGUAGE_NAMES))
+                        choices=prompts.SUPPORTED_LANGUAGE_CODES)
     parser.add_argument("--speed", type=float, default=0.0,
                         help="Replay speed (match-sec/real-sec); 0 = no waiting.")
     parser.add_argument("--mock", action="store_true",
                         help="Offline: deterministic lines, no Gemini call.")
     args = parser.parse_args(argv)
 
-    try:
-        from dotenv import load_dotenv
-        load_dotenv(REPO / ".env")
-    except ImportError:
-        pass
+    if not args.mock:
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(REPO / ".env")
+        except ImportError:
+            pass
 
     from replayer.event_replayer import replay  # local import to avoid a hard cycle
 
     events = _load_events(args.match_id, args.sample)
     agent = CommentaryAgent(language=args.language, mock=args.mock)
 
-    print(f"# MlangCast — {prompts.LANGUAGE_NAMES[args.language]} — "
+    print(f"# MlangCast — {prompts.language_display_name(args.language)} — "
           f"{'sample' if args.match_id is None else args.match_id} "
           f"({'mock' if args.mock else agent.model})\n")
     for ev, line in agent.run(replay(events, speed=args.speed)):

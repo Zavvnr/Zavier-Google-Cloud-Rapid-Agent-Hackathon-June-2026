@@ -35,6 +35,7 @@ def parse_timestamp(ts: str) -> float:
 
 
 def _order_key(ev: dict) -> tuple:
+    """Return a stable ordering key that prefers StatsBomb's canonical index."""
     # StatsBomb `index` is the canonical within-match ordering; fall back to the
     # clock if it's ever missing.
     return (ev.get("index", 0), ev.get("period", 0), ev.get("minute", 0), ev.get("second", 0))
@@ -86,6 +87,7 @@ def summarize_event(ev: dict) -> str:
 
 
 def _load_events(match_id: Optional[int], use_sample: bool) -> list[dict]:
+    """Load bundled sample events or cached match events for the CLI."""
     if use_sample or match_id is None:
         return json.loads(SAMPLE.read_text(encoding="utf-8"))
     cache = REPO / "data" / "cache" / str(match_id) / "events.json"
@@ -98,6 +100,7 @@ def _load_events(match_id: Optional[int], use_sample: bool) -> list[dict]:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    """Run the replayer CLI and print each replayed event summary."""
     parser = argparse.ArgumentParser(description="Replay a match event stream in accelerated time.")
     parser.add_argument("--match-id", type=int, default=None)
     parser.add_argument("--sample", action="store_true", help="Use bundled sample events.")
