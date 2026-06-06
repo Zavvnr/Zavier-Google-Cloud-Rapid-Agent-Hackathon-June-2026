@@ -5,6 +5,7 @@
 requests>=2.31           # raw StatsBomb open-data JSON over HTTP
 statsbombpy>=1.11
 google-genai>=0.8
+pymongo[srv]
 python-dotenv>=1.0
 google-cloud-texttospeech
 

@@ -39,17 +39,18 @@ OPEN_DATA_BASE = "https://raw.githubusercontent.com/statsbomb/open-data/master/d
 # Cached matches live here. Git-ignored (see .gitignore).
 CACHE_DIR = Path(__file__).resolve().parent / "cache"
 
-# Default demo match: FIFA World Cup 2022 Final — Argentina vs France.
-# NOTE: this id is a sensible default, but VERIFY/choose your demo match with
-# `--list-matches`. Six goals + a Messi/Mbappé showcase make it great for a demo.
+# Default demo match: FIFA World Cup 2022 Final — Argentina 3-3 France
+# (Argentina won on penalties), played 2022-12-18. Six goals + a Messi/Mbappé
+# showcase make it ideal for the demo.
+# Verified against StatsBomb open-data matches/43/106.json:
+#   match_id 3869685 | competition_id 43 (FIFA World Cup) | season_id 106 (2022)
+#   home Argentina (779) vs away France (771).
 DEFAULT_DEMO_MATCH_ID = 3869685
 WORLD_CUP_2022 = {"competition_id": 43, "season_id": 106}
 
-# A few well-known open-data matches you might use for the demo. Treat the ids as
-# starting points and confirm with `--list-matches`.
+# Canonical demo match (verified). Discover others with `--list-matches`.
 DEMO_MATCHES = {
-    3869685: "FIFA World Cup 2022 Final — Argentina vs France",
-    3795506: "FIFA World Cup 2022 Semi-final — Argentina vs Croatia",
+    3869685: "FIFA World Cup 2022 Final — Argentina 3-3 France (pens), 2022-12-18",
 }
 
 STATSBOMB_ATTRIBUTION = (
