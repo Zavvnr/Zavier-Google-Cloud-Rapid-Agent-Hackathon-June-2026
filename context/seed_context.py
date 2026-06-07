@@ -163,6 +163,51 @@ def connect_collection(uri: Optional[str] = None):
     return MongoClient(uri, **kwargs)[DB_NAME][COLLECTION]
 
 
+def create_vector_index(collection, name: str = "vector_index",
+                        dims: int = EMBED_DIMS, similarity: str = "cosine") -> str:
+    """
+    Create the Atlas Vector Search index that the $vectorSearch query needs.
+
+    Idempotent: if an index of this name already exists, it's left untouched.
+    The index builds in the background — it isn't queryable for ~1-2 minutes
+    (check with --list-indexes). Requires a recent pymongo (>= 4.7).
+    """
+    from pymongo.operations import SearchIndexModel
+
+    try:
+        existing = {ix.get("name") for ix in collection.list_search_indexes()}
+    except Exception:
+        existing = set()
+    if name in existing:
+        return f"Vector index '{name}' already exists — nothing to do."
+
+    model = SearchIndexModel(
+        definition={
+            "fields": [{
+                "type": "vector",
+                "path": "embedding",
+                "numDimensions": dims,
+                "similarity": similarity,
+            }]
+        },
+        name=name,
+        type="vectorSearch",
+    )
+    collection.create_search_index(model=model)
+    return (f"Created vector index '{name}' (path=embedding, dims={dims}, "
+            f"similarity={similarity}). It builds in the background — give it "
+            f"~1-2 minutes, then check status with --list-indexes.")
+
+
+def list_vector_indexes(collection) -> str:
+    """List Atlas search/vector indexes and whether each is queryable yet."""
+    rows = []
+    for ix in collection.list_search_indexes():
+        rows.append(f"  {ix.get('name')}: status={ix.get('status', '?')}, "
+                    f"queryable={ix.get('queryable', '?')}")
+    return "\n".join(rows) if rows else "  (no search indexes yet)"
+
+
 def embed_documents(texts: List[str]) -> List[List[float]]:
     """
     Embed document texts with gemini-embedding-001 in as FEW API calls as possible.
@@ -244,7 +289,30 @@ def main(argv: Optional[list[str]] = None) -> int:
                         help="Actually write to MongoDB (needs MONGODB_URI + GOOGLE_API_KEY).")
     parser.add_argument("--no-embed", action="store_true",
                         help="Seed without embeddings (text-search only; skips Gemini).")
+    parser.add_argument("--create-index", action="store_true",
+                        help="Create the Atlas vector_index on the embedding field, then exit.")
+    parser.add_argument("--list-indexes", action="store_true",
+                        help="List Atlas search/vector indexes and their status, then exit.")
     args = parser.parse_args(argv)
+
+    # Index management actions connect to Atlas but don't need match files.
+    if args.create_index or args.list_indexes:
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(REPO / ".env")
+        except ImportError:
+            pass
+        try:
+            collection = connect_collection()
+            if args.create_index:
+                print(create_vector_index(collection))
+            if args.list_indexes:
+                print("Search indexes:")
+                print(list_vector_indexes(collection))
+        except Exception as exc:
+            print(_atlas_error_hint(exc), file=sys.stderr)
+            return 1
+        return 0
 
     # Resolve input files (explicit flags win; otherwise fall back to the cache).
     lineups_path = args.lineups or (_cached(args.match_id, "lineups.json") if args.match_id else None)
