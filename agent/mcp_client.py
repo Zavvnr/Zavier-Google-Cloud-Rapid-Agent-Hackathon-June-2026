@@ -4,7 +4,7 @@ MongoDB context retrieval for the commentary agent (the partner "MCP" seam).
 The agent calls a context client as a tool to pull player/team/standings/glossary
 facts for the current event. Two implementations:
 
-  * NoOpContextClient    — returns {} (Day 1/2 stays fully offline).
+  * NoOpContextClient    — returns {} (the development was prior to MCP implementation).
   * MongoMCPContextClient — real Atlas Vector Search retrieval, mirroring the
                             schema seeded by agent/seed_context.py
                             (db "mlangcast", collection "context", index
@@ -88,19 +88,19 @@ def _format_context(docs: Optional[List[dict]]) -> dict:
 
 @dataclass
 class NoOpContextClient:
-    """Context client used when Day 3 retrieval is disabled; returns nothing."""
+    """Context client used when retrieval is disabled; returns nothing."""
 
     reason: str = "MongoDB context retrieval is disabled for this run."
 
     def fetch_event_context(self, event: dict, state: Optional[dict] = None) -> dict:
-        """Return empty context so the Day 1/2 pipeline stays fully offline-safe."""
+        """Return empty context so the test prior to the MCP pipeline stays offline-safe."""
         return {}
 
 
 @dataclass
 class MongoMCPContextClient:
     """
-    Real Atlas Vector Search retrieval for the commentary agent (Day 3).
+    Real Atlas Vector Search retrieval for the commentary agent.
 
     Defaults match agent/seed_context.py so a single seeding pass serves both the
     seed/search demo and this runtime client. For tests, inject `collection_handle`

@@ -64,7 +64,7 @@ class CommentaryAgentTests(unittest.TestCase):
         self.assertEqual(agent.language, "en-US")
 
     def test_handle_fetches_context_through_injected_client(self) -> None:
-        """The Day 3 context seam should be called before line generation."""
+        """Context seam should be called before line generation."""
         class FakeContextClient:
             """Small test double that records context fetch calls."""
 
@@ -168,7 +168,7 @@ class CommentaryAgentTests(unittest.TestCase):
         self.assertIn("color/tournament_form", item.turns[0].text)
 
     def test_replayer_to_agent_mock_pipeline_yields_commentary_lines(self) -> None:
-        """The Day 2 integration path should stream replayed events into the agent."""
+        """Integration path should stream replayed events into the agent."""
         events = [
             pass_event(1, 1, 0, [108.0, 40.0]),
             shot_event(2, 1, 20, "Goal"),

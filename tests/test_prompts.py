@@ -1,4 +1,4 @@
-"""Unit tests for Day 2 prompt and language helpers."""
+"""Unit tests for the prompt and language helpers."""
 
 from __future__ import annotations
 

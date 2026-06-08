@@ -84,7 +84,7 @@ def stream_commentary(
     speaker=None,
 ) -> Iterator[CommentaryOutput]:
     """
-    Stream replayed events through the agent and optional Day 3 context + Day 4 TTS.
+    Stream replayed events through the agent and optional the context + TTS.
 
     `tts_provider` defaults to "noop" (text only). Pass "google" with
     tts_enabled=True for real Google Cloud TTS audio.
@@ -145,8 +145,8 @@ def main(argv: Optional[list[str]] = None) -> int:
                         choices=prompts.SUPPORTED_LANGUAGE_CODES)
     parser.add_argument("--speed", type=float, default=_env_float("REPLAY_SPEED", 0.0))
     parser.add_argument("--mock", action="store_true", help="Offline deterministic commentary.")
-    parser.add_argument("--context", action="store_true", help="Enable Day 3 MongoDB context.")
-    parser.add_argument("--tts", action="store_true", help="Enable Day 4 text-to-speech.")
+    parser.add_argument("--context", action="store_true", help="Enable MongoDB context.")
+    parser.add_argument("--tts", action="store_true", help="Enable text-to-speech (TTS.")
     parser.add_argument("--tts-provider", default="noop", choices=["noop", "google"],
                         help="TTS backend when --tts is set (google = Google Cloud TTS).")
     parser.add_argument("--no-dead-air", action="store_true",

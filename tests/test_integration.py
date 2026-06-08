@@ -79,7 +79,7 @@ def _shot_goal(index: int = 1) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# Day 3 — context retrieval                                                   #
+# Context retrieval test                                                      #
 # --------------------------------------------------------------------------- #
 class Day3ContextRetrieval(unittest.TestCase):
     def test_vector_search_returns_grouped_context(self):
@@ -115,7 +115,7 @@ class Day3ContextRetrieval(unittest.TestCase):
         self.assertEqual(NoOpContextClient().fetch_event_context(_shot_goal()), {})
 
     def test_agent_uses_injected_context_client(self):
-        """The agent's Day 3 seam calls the context client and returns its data."""
+        """The agent's seam calls the context client and returns its data."""
         class StubContext:
             def fetch_event_context(self, ev, state=None):
                 return {"players": ["Lionel Messi: Argentina captain"]}
@@ -125,7 +125,7 @@ class Day3ContextRetrieval(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------- #
-# Day 3 — seeding                                                             #
+# Seeding tests                                                               #
 # --------------------------------------------------------------------------- #
 class Day3Seeding(unittest.TestCase):
     def test_seed_inserts_documents_with_embeddings(self):
@@ -160,7 +160,7 @@ class Day3Seeding(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------- #
-# Day 4 — TTS                                                                 #
+# Text-to-speech (TTS) tests                                                  #
 # --------------------------------------------------------------------------- #
 class Day4Tts(unittest.TestCase):
     def test_google_speaker_writes_audio_via_injected_transport(self):
@@ -198,7 +198,7 @@ class Day4Tts(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------- #
-# Day 4 — pipeline end to end                                                 #
+# Pipeline end to end test                                                    #
 # --------------------------------------------------------------------------- #
 class Day4Pipeline(unittest.TestCase):
     def test_pipeline_attaches_audio_when_speaker_injected(self):
@@ -261,7 +261,7 @@ class RealMatchSmoke(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------- #
-# Day 4 — web app (Flask routes + SSE)                                        #
+# Web app (Flask routes + SSE) test                                           #
 # --------------------------------------------------------------------------- #
 class WebApp(unittest.TestCase):
     """Exercise the Flask routes with the test client (skipped if Flask absent)."""

@@ -1,4 +1,4 @@
-"""Unit tests for the Day 2 event replayer."""
+"""Unit tests for the event replayer."""
 
 from __future__ import annotations
 

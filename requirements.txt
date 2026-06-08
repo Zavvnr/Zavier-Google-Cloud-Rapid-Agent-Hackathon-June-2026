@@ -6,6 +6,5 @@ google-genai>=0.8
 pymongo[srv]
 python-dotenv>=1.0
 google-cloud-texttospeech
-
 flask>=3.0               # minimal web UI (web/app.py)
 gunicorn>=21.0           # WSGI server used by the Cloud Run container

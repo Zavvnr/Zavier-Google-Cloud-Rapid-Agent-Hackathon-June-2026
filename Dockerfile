@@ -1,4 +1,4 @@
-# MlangCast — container image for Google Cloud Run (Day 4 deploy).
+# MlangCast — container image for Google Cloud Run.
 #
 # Quick deploy (build happens in the cloud, no local Docker needed):
 #   gcloud run deploy mlangcast --source . --region us-central1 \

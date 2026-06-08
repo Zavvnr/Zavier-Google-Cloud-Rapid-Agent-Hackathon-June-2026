@@ -219,7 +219,7 @@ def _print_matches(competition_id: int, season_id: int) -> None:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    """Run the Day 1 loader CLI for discovery or match caching."""
+    """Run the loader CLI for discovery or match caching."""
     parser = argparse.ArgumentParser(description="Download/cache a StatsBomb open-data match.")
     parser.add_argument("--match-id", type=int, default=None, help="Match to download and cache.")
     parser.add_argument("--competition-id", type=int, default=None)

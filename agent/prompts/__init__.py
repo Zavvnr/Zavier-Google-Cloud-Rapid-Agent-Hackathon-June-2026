@@ -144,7 +144,7 @@ def build_event_prompt(
 ) -> str:
     """
     Per-turn user message: the current event, the match state, and any retrieved
-    context (Day 3 MCP). Faithfulness rules live in the system prompt.
+    context. Faithfulness rules live in the system prompt.
     """
     state = state or {}
     lines = []

@@ -1,7 +1,7 @@
 """
 spike/go_no_go.py
 
-The whole point of Day 1 is to answer ONE question before building anything:
+The whole point of this script is to answer ONE question before building anything:
     "If we hand Gemini ~15-20 real match events, is the commentary actually good?"
 
 So this script is deliberately throwaway — no replayer, no agent, no MCP, no TTS.
@@ -45,10 +45,10 @@ SKIP_TYPES = {"Ball Receipt*", "Pressure", "Carry", "Half Start", "Half End"}
 # Load events                                                                 #
 # --------------------------------------------------------------------------- #
 def load_events(match_id: Optional[int]) -> list[dict]:
-    """Load the bundled sample or a cached real match for the Day 1 spike."""
+    """Load the bundled sample or a cached real match for the spike."""
     if match_id is None:
         return json.loads(SAMPLE.read_text(encoding="utf-8"))
-    # Reuse the Day 1 loader's cache layout.
+    # Reuse the loader's cache layout.
     cache = REPO / "data" / "cache" / str(match_id) / "events.json"
     if not cache.exists():
         raise SystemExit(
@@ -128,10 +128,10 @@ Commentary ({lang_name}):"""
 
 
 # --------------------------------------------------------------------------- #
-# Gemini call (standalone — Day 1 has no shared client yet)                   #
+# Gemini call (standalone — Has no shared client yet)                   #
 # --------------------------------------------------------------------------- #
 def call_gemini(prompt: str) -> str:
-    """Send the assembled Day 1 prompt to Gemini and return the text response."""
+    """Send the assembled prompt to Gemini and return the text response."""
     try:
         from google import genai
     except ImportError as exc:  # pragma: no cover
@@ -162,14 +162,14 @@ GO / NO-GO — judge the output above:
   [ ] Right language?  Entirely in the requested language.
   [ ] Paced?       Build-up grouped, big moments emphasised.
   [ ] Listenable?  Reads like a commentator, not a data dump.
-If yes -> GO: proceed to Day 2 (replayer + agent).
+If yes -> GO: proceed to replayer + agent.
 If no  -> NO-GO: iterate on the prompt before building the pipeline.
 ------------------------------------------------------------------"""
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    """Run the Day 1 go/no-go CLI from event selection through commentary output."""
-    parser = argparse.ArgumentParser(description="Day 1 go/no-go commentary spike.")
+    """Run the go/no-go CLI from event selection through commentary output."""
+    parser = argparse.ArgumentParser(description="go/no-go commentary spike.")
     parser.add_argument("--match-id", type=int, default=None,
                         help="Use a cached match instead of the bundled sample.")
     parser.add_argument("--language", default=os.getenv("DEFAULT_LANGUAGE", "en"),

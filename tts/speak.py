@@ -1,8 +1,8 @@
 """
 Text-to-speech for the commentary pipeline.
 
-  * NoOpSpeaker        — default; returns the text with no audio (Day 2 path,
-                         no credentials, runs anywhere).
+  * NoOpSpeaker        — default; returns the text with no audio
+                         (no credentials, runs anywhere).
   * GoogleCloudSpeaker — real synthesis via the Google Cloud Text-to-Speech REST
                          API authenticated with GOOGLE_API_KEY. Saves an mp3 and
                          returns its bytes/path.

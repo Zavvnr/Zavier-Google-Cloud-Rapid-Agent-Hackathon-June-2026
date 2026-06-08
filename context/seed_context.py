@@ -10,7 +10,7 @@ Two modes, on purpose:
 
   * Seed (--seed): connect to Atlas via MONGODB_URI, embed each doc with
     google-genai (gemini-embedding-001, matching agent/seed_context.py and the
-    vector_index), and insert. This is the real Day 3 write path.
+    vector_index), and insert.
 
 Document schema (kept identical to agent/seed_context.py so one collection serves
 both the seed/search demo and the runtime MongoMCPContextClient):
@@ -99,7 +99,7 @@ def build_seed_documents(
     glossary: Optional[Iterable[dict]] = None,
     player_forms: Optional[Iterable[dict]] = None,
 ) -> list[dict]:
-    """Combine player, team, and glossary records into Day 3 seed documents."""
+    """Combine player, team, and glossary records into seed documents."""
     docs = []
     docs.extend(player_docs_from_lineups(lineups or []))
     docs.extend(dict(item) for item in (player_forms or []))
@@ -118,7 +118,7 @@ def seed_context_store(
     Insert seed documents into a collection-like `client`, or preview if none.
 
     * client is None  -> nothing is written; returns a "pending" preview status.
-                         (Day 1/2 + the placeholder tests rely on this.)
+                         (Tests written prior to the MCP implementation rely on this).
     * client provided -> real insert. `client` is anything exposing insert_many()
                          (a pymongo collection in production, a fake in tests).
                          If `embedder` is given, an "embedding" vector is attached
@@ -282,7 +282,7 @@ def _atlas_error_hint(exc: Exception) -> str:
 
 def main(argv: Optional[list[str]] = None) -> int:
     """Preview seed documents, or seed Atlas when --seed is given."""
-    parser = argparse.ArgumentParser(description="Build/seed Day 3 context documents.")
+    parser = argparse.ArgumentParser(description="Build/seed context documents.")
     parser.add_argument("--match-id", type=int, default=None,
                         help="Load lineups/meta from data/cache/<id>/.")
     parser.add_argument("--lineups", type=Path, default=None)

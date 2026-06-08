@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MlangCast — one-shot Cloud Run deploy (Day 4).
+# MlangCast — one-shot Cloud Run deploy.
 #
 # Prereqs (once):
 #   gcloud auth login && gcloud config set project <YOUR_PROJECT>

@@ -1,4 +1,4 @@
-"""Unit tests for the Day 1 StatsBomb loader/cache layer."""
+"""Unit tests for the StatsBomb loader/cache layer."""
 
 from __future__ import annotations
 

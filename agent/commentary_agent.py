@@ -4,12 +4,10 @@ agent/commentary_agent.py
 The core generation loop (text only): consume an event stream, decide what's worth
 saying (pacing), track the score, and generate each commentary line natively in the
 target language — with a hard "no inventing events" guardrail (see agent/prompts).
+Since this module is developed before the MCP implementation, the context retrieval
+is a stub that returns {} and can be safely ignored.
 
-What's intentionally NOT here yet:
-  * MCP context retrieval  -> Day 3 (see `fetch_context`, a stub for now).
-  * Text-to-speech          -> Day 4.
-
-CLI (ties the replayer + agent together — the Day 2 end-to-end demo):
+CLI (ties the replayer + agent together — the end-to-end demo):
     python -m agent.commentary_agent --sample --language en --mock
     python -m agent.commentary_agent --sample --language es           # needs GOOGLE_API_KEY
     python -m agent.commentary_agent --match-id 3869685 --language id --speed 60
@@ -259,12 +257,12 @@ class CommentaryAgent:
             return True
         return (self.state.match_seconds() - last) >= COMMENT_COOLDOWN_S
 
-    # -- Day 3 hook: MCP context retrieval (stub for now) ------------------- #
+    # -- MCP context retrieval --------------------------------------------- #
     def fetch_context(self, ev: dict) -> dict:
         """
-        Fetch optional Day 3 context for the current event through the MCP seam.
+        Fetch optional context for the current event through the MCP seam.
 
-        The default context client returns {}, so Day 2 runs without MongoDB.
+        The default context client returns {}, so this runs without MongoDB.
         """
         try:
             return self.context_client.fetch_event_context(ev, self.state.as_prompt_dict())
@@ -495,8 +493,8 @@ def _load_events(match_id: Optional[int], use_sample: bool) -> list[dict]:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    """Run the Day 2 CLI demo by wiring cached/sample events into the agent."""
-    parser = argparse.ArgumentParser(description="Day 2 commentary loop (replayer + agent).")
+    """Run the CLI demo by wiring cached/sample events into the agent."""
+    parser = argparse.ArgumentParser(description="Commentary loop (replayer + agent).")
     parser.add_argument("--match-id", type=int, default=None)
     parser.add_argument("--sample", action="store_true", help="Use bundled sample events.")
     parser.add_argument("--language", default=os.getenv("DEFAULT_LANGUAGE", "en"),
