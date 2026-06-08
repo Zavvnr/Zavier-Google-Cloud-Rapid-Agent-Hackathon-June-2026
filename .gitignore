@@ -26,3 +26,6 @@ env/
 Thumbs.db
 .vscode/
 .idea/
+
+# --- Additional Instructions used to add Features ---
+instructions.md

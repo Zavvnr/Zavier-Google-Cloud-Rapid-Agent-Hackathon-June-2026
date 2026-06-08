@@ -1,4 +1,4 @@
-"""Unit and integration tests for the Day 2 commentary agent."""
+"""Unit and integration tests for the commentary agent."""
 
 from __future__ import annotations
 

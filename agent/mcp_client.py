@@ -1,5 +1,5 @@
 """
-Day 3: MongoDB context retrieval for the commentary agent (the partner "MCP" seam).
+MongoDB context retrieval for the commentary agent (the partner "MCP" seam).
 
 The agent calls a context client as a tool to pull player/team/standings/glossary
 facts for the current event. Two implementations:

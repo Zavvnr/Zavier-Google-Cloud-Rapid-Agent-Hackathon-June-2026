@@ -1,1 +1,1 @@
-"""Day 3 context package for MongoDB/MCP seed and retrieval helpers."""
+"""Context package for MongoDB/MCP seed and retrieval helpers."""

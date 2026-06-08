@@ -1,5 +1,5 @@
 """
-Day 4: minimal web UI for MlangCast.
+Minimal web UI for MlangCast.
 
 Pick a language + match, then watch commentary stream in near-real-time with
 optional synced audio. This module is thin glue over pipeline.stream_commentary;

@@ -1,1 +1,1 @@
-"""Day 4: minimal Flask web UI (language + match picker, synced text + audio)."""
+"""Minimal Flask web UI implementation (language + match picker, synced text + audio)."""

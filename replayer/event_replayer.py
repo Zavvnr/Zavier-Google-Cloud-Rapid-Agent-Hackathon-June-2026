@@ -1,5 +1,5 @@
 """
-replayer/event_replayer.py  —  Day 2 deliverable.
+replayer/event_replayer.py
 
 Replays a StatsBomb match event stream in accelerated real time, so the
 commentary agent receives events with realistic pacing (a 3-second build-up takes

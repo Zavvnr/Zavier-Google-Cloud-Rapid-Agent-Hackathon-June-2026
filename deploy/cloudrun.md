@@ -1,4 +1,4 @@
-# Deploying MlangCast to Google Cloud Run (Day 4)
+# Deploying MlangCast to Google Cloud Run
 
 The app is a single Flask service (`web.app:app`) containerized by the repo-root
 `Dockerfile`. Secrets are injected as env vars at runtime — **nothing secret is

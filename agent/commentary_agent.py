@@ -1,5 +1,5 @@
 """
-agent/commentary_agent.py  —  Day 2 deliverable.
+agent/commentary_agent.py
 
 The core generation loop (text only): consume an event stream, decide what's worth
 saying (pacing), track the score, and generate each commentary line natively in the

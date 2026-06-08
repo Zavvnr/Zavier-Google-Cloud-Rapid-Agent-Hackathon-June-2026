@@ -1,5 +1,5 @@
 """
-data/loader.py  —  Day 1 deliverable.
+data/loader.py
 
 Download and cache a single StatsBomb Open Data match (events + lineups + meta)
 so the rest of the pipeline (replayer, agent) can run repeatedly, offline, against

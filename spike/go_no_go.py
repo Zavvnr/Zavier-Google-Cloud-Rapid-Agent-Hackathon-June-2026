@@ -1,5 +1,5 @@
 """
-spike/go_no_go.py  —  Day 1 go/no-go spike.
+spike/go_no_go.py
 
 The whole point of Day 1 is to answer ONE question before building anything:
     "If we hand Gemini ~15-20 real match events, is the commentary actually good?"

@@ -1,8 +1,8 @@
 """
-agent/prompts  —  prompt assembly for the commentary agent (Day 2).
+agent/prompts  —  prompt assembly for the commentary agent
 
 The system prompt is composed from four editable building blocks so each concern
-can be tuned independently during the Day 5 quality pass:
+can be tuned independently
 
     faithfulness.md  — the "no inventing events" guardrail (never cut)
     pacing.md        — when to speak vs. stay quiet

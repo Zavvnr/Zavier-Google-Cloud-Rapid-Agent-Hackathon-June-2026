@@ -1,4 +1,4 @@
-"""Commentary agent (Day 2 text-only loop; Day 3 adds MCP context).
+"""Commentary agent
 
 Import from the submodule, e.g.:
     from agent.commentary_agent import CommentaryAgent, MatchState

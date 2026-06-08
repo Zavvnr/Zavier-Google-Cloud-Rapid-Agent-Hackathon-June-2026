@@ -1,5 +1,5 @@
 """
-Day 3: seed the MongoDB "mlangcast.context" collection with football-context docs.
+Seed the MongoDB "mlangcast.context" collection with football-context docs.
 
 Two modes, on purpose:
 

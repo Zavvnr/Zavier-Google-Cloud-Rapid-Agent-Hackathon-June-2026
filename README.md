@@ -144,21 +144,6 @@ Match event data is provided free by **StatsBomb** under their public data user 
 
 - Source: https://github.com/statsbomb/open-data
 
-## Build Plan (7 days → Jun 11)
-
-| Day | Focus | Output |
-|---|---|---|
-| **1** | Setup + **go/no-go spike** | GCP project, repo + license, one demo match downloaded; paste ~15–20 events into Gemini and confirm the commentary is good |
-| **2** | Core generation loop (text only) | Event replayer + per-event commentary with pacing; 2–3 languages working; "no inventing events" guardrail |
-| **3** | Make it an agent + wire MCP | Agent Builder agent that calls the MongoDB MCP server for player/team/standings context |
-| **4** | Voice + UI + deploy | TTS, minimal UI (pick language/match → synced text+audio), live on Cloud Run |
-| **5** | Quality pass + buffer | Prompt tuning (tone, energy, no repetition, faithfulness); absorbs earlier spillover |
-| **6** | Demo video + submission | ~3-min video (problem → demo in 2 languages → impact → tech), README/license finalized, Devpost form |
-| **Jun 11 AM** | Final checks + **submit early** | Verify hosted URL, public repo, detectable license, working video — submit well before 2pm PDT |
-
-**If behind, cut in this order:** expressive TTS → basic TTS → text-only (still demos the idea); then strip the UI to a single page.
-**Never cut:** multilingual generation · one real MCP integration · the video · repo + license.
-
 ## Roadmap
 
 - **Real-time feeds** — replace replayed historical data with a live event provider (Opta / Sportradar).

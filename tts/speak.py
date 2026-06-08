@@ -1,5 +1,5 @@
 """
-Day 4: text-to-speech for the commentary pipeline.
+Text-to-speech for the commentary pipeline.
 
   * NoOpSpeaker        — default; returns the text with no audio (Day 2 path,
                          no credentials, runs anywhere).

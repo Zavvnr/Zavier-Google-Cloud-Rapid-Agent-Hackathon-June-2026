@@ -1,6 +1,4 @@
 """
-Pipeline glue for Day 2 text, Day 3 context, and Day 4 speech.
-
 This keeps the CLI/demo path small: events enter from the replayer, the agent
 produces text, and a speaker can optionally turn that text into audio.
 """

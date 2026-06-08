@@ -1,6 +1,5 @@
 """
-Integration tests for Day 3 (MongoDB context retrieval + seeding) and Day 4
-(Google Cloud TTS + pipeline wiring + web app).
+Integration tests for (MongoDB context retrieval + seeding) and (Google Cloud TTS + pipeline wiring + web app).
 
 These exercise the REAL code paths — vector/text search, embedding-on-seed, the
 TTS REST flow, the pipeline, and the Flask routes — without needing a live
@@ -9,7 +8,7 @@ fakes (a fake collection, a fake embedder, a fake HTTP transport), exactly the
 way the production objects expose them.
 
 Run:
-    python -m unittest tests.test_integration_day3_day4 -v
+    python -m unittest tests.test_integration -v
     # or the whole suite:
     python -m unittest discover -s tests -v
 """
