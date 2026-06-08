@@ -35,9 +35,11 @@ MlangCast stands for Multiple-language Cast. It turns a structured stream of mat
 1. **Ingests** a match as a timestamped event stream (pass, shot, foul, card, goal) from StatsBomb open data.
 2. **Replays** that stream in accelerated real time to simulate a live match.
 3. An **AI agent** (Gemini 3 on Agent Builder) decides *what's worth saying* (pacing — it doesn't narrate every throw-in), *how excited to be*, and *what context to add* — then generates each line **in the target language**.
-4. The agent **retrieves context** (player history, team form, standings, terminology) by calling a partner **MCP server** as a tool.
-5. **Text-to-speech** voices the commentary so the viewer can listen, not just read.
-6. A lightweight **web UI** lets the user pick a language and a match and watch the commentary stream beside a match clock.
+4. During quiet stretches, an **analyst voice** fills dead air with faithful color about the player on the ball, using retrieved player context plus live in-match tallies.
+5. For two-commentator mode, the system generates a sequential **lead + analyst** script: the lead handles play-by-play and goal calls, then the analyst reacts or adds color.
+6. The agent **retrieves context** (player history, team form, standings, terminology) by calling a partner **MCP server** as a tool.
+7. **Text-to-speech** voices the commentary so the viewer can listen, not just read.
+8. A lightweight **web UI** lets the user pick a language and a match and watch the commentary stream beside a match clock.
 
 Because the commentary is **generated natively in the target language**, the multilingual experience is built in — there's no separate translation step and no speech-recognition errors to inherit.
 
@@ -138,11 +140,24 @@ python context/seed_context.py                          # populate MongoDB conte
 python -m web.app                                       # launch UI at http://localhost:8080
 ```
 
+**Feature smoke tests**
+```bash
+python -m agent.commentary_agent --sample --mock --two-speakers
+python -m pipeline.commentary_pipeline --sample --mock --two-speakers
+python -m context.player_stats --match-ids 3869685
+```
+
 ## Data & Attribution
 
 Match event data is provided free by **StatsBomb** under their public data user agreement. Per that agreement, any research, analysis, or output derived from the data **must credit StatsBomb as the data source**. This project uses it for non-commercial, hackathon/research purposes.
 
 - Source: https://github.com/statsbomb/open-data
+
+## Demo Scope
+
+The hackathon demo is scoped to the **2022 World Cup final** and the Argentina/France player pool. Player-form context is derived by aggregating cached StatsBomb events across whichever WC 2022 matches are supplied to `context.player_stats`; for the fastest local demo, the final alone works, and for fuller tournament color you can cache and pass all Argentina/France match ids.
+
+The ingestion and document schema are not final-only: they accept any cached match list and emit the same `kind: "player"` context documents for MongoDB retrieval.
 
 ## Roadmap
 

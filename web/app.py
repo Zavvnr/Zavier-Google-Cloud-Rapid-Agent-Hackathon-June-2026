@@ -102,6 +102,8 @@ def create_app() -> Flask:
         mock = request.args.get("mock", "1") == "1"
         context_enabled = request.args.get("context", "0") == "1"
         tts_enabled = request.args.get("tts", "0") == "1"
+        two_speakers = request.args.get("two_speakers", "0") == "1"
+        dead_air_enabled = request.args.get("dead_air", "1") != "0"
 
         try:
             events = _load_events(match)
@@ -119,10 +121,18 @@ def create_app() -> Flask:
                     context_enabled=context_enabled,
                     tts_enabled=tts_enabled,
                     tts_provider="google" if tts_enabled else "noop",
+                    dead_air_enabled=dead_air_enabled,
+                    two_speakers=two_speakers,
                 ):
                     payload = item.as_dict()
                     if item.speech.audio_path:
                         payload["audio_url"] = "/api/audio/" + Path(item.speech.audio_path).name
+                    if item.dialogue_audio:
+                        payload["audio_urls"] = [
+                            "/api/audio/" + Path(segment.audio_path).name
+                            for segment in item.dialogue_audio.segments
+                            if segment.audio_path
+                        ]
                     yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
             except Exception as exc:  # surface, don't crash the worker
                 yield f"event: streamerror\ndata: {json.dumps(str(exc))}\n\n"

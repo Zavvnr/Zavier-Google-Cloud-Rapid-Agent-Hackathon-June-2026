@@ -1,7 +1,5 @@
 # MlangCast — Python dependencies
 # Grouped by build-plan day so you only install what each stage needs.
-
-# --- Day 1: data loader + go/no-go spike ---
 requests>=2.31           # raw StatsBomb open-data JSON over HTTP
 statsbombpy>=1.11
 google-genai>=0.8
@@ -9,15 +7,5 @@ pymongo[srv]
 python-dotenv>=1.0
 google-cloud-texttospeech
 
-# --- Day 2: replayer + commentary agent ---
-# (no new hard deps — pure-Python replayer + agent reuse google-genai above)
-
-# --- Day 3: MongoDB MCP context store
-# pymongo>=4.6
-
-# --- Day 4: text-to-speech + web UI ---
-# TTS uses the Google Cloud Text-to-Speech REST API via GOOGLE_API_KEY (requests),
-# so no extra TTS client lib is required. The web UI + Cloud Run need:
 flask>=3.0               # minimal web UI (web/app.py)
 gunicorn>=21.0           # WSGI server used by the Cloud Run container
-# elevenlabs>=1.0        # optional expressive TTS (not wired; default is Google TTS)

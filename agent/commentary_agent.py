@@ -25,6 +25,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, Iterator, Optional
 
+from agent.commentary_crew import (
+    ANALYST,
+    LEAD,
+    CommentaryCrew,
+    DialogueScript,
+    Turn,
+    TurnPlan,
+    TurnTakingController,
+)
+from agent.dead_air import ColorCommentator, LiveTallies, LullDetector
 from agent.mcp_client import NoOpContextClient
 from agent import prompts
 
@@ -137,6 +147,33 @@ class MatchState:
         }
 
 
+@dataclass
+class CommentaryItem:
+    """Structured commentary for one spoken moment."""
+
+    event: dict
+    text: str
+    kind: str
+    speaker: str
+    turns: list[Turn] = field(default_factory=list)
+
+    def as_dict(self) -> dict:
+        """Serialize the item for pipeline/web output."""
+        return {
+            "kind": self.kind,
+            "speaker": self.speaker,
+            "text": self.text,
+            "turns": [
+                {
+                    "speaker": turn.speaker,
+                    "text": turn.text,
+                    "audio_tags": list(turn.audio_tags),
+                }
+                for turn in self.turns
+            ],
+        }
+
+
 # --------------------------------------------------------------------------- #
 # Agent                                                                       #
 # --------------------------------------------------------------------------- #
@@ -152,6 +189,13 @@ class CommentaryAgent:
         context_client=None,
         home_team: str = "",
         away_team: str = "",
+        dead_air_enabled: bool = True,
+        two_speakers: bool = False,
+        lull_detector: Optional[LullDetector] = None,
+        tallies: Optional[LiveTallies] = None,
+        color_commentator: Optional[ColorCommentator] = None,
+        crew: Optional[CommentaryCrew] = None,
+        turn_controller: Optional[TurnTakingController] = None,
     ):
         """Create an agent with optional mock mode and an injectable Gemini client."""
         self.language = prompts.normalize_language(language)
@@ -161,6 +205,22 @@ class CommentaryAgent:
         self.context_client = context_client or NoOpContextClient()
         self.state = MatchState(home_team=home_team, away_team=away_team)
         self._system = prompts.system_prompt(self.language)
+        self.dead_air_enabled = dead_air_enabled
+        self.two_speakers = two_speakers
+        self.tallies = tallies or LiveTallies()
+        self.lull_detector = lull_detector or LullDetector()
+        self.turn_controller = turn_controller or TurnTakingController()
+        text_generator = None if mock else self._generate_text_prompt
+        self.color_commentator = color_commentator or ColorCommentator(
+            language=self.language,
+            generate=text_generator,
+            mock=mock,
+        )
+        self.crew = crew or CommentaryCrew(
+            language=self.language,
+            generate=text_generator,
+            mock=mock,
+        )
 
     # -- match-state bookkeeping -------------------------------------------- #
     def _advance_clock(self, ev: dict) -> None:
@@ -219,6 +279,37 @@ class CommentaryAgent:
             self._client = build_gemini_client()
         return self._client
 
+    def _generate_text_prompt(self, prompt: str, max_output_tokens: int = 160) -> Optional[str]:
+        """Generate text from an already-built prompt, keeping API failures fail-safe."""
+        try:
+            from google.genai import types  # lazy import
+            client = self._client_or_build()
+            resp = client.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=self._system,
+                    temperature=0.85,
+                    max_output_tokens=max_output_tokens,
+                ),
+            )
+            text = (resp.text or "").strip()
+        except Exception as exc:  # keep the live loop alive on any API hiccup
+            msg = str(exc)
+            if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
+                if not getattr(self, "_rate_limit_warned", False):
+                    print("[agent] Gemini rate limit hit (HTTP 429). The free tier is "
+                          "very low (~5 req/min). Use --mock for the full match, demo "
+                          "real Gemini on a short clip/the sample, or enable billing.",
+                          file=sys.stderr)
+                    self._rate_limit_warned = True
+            else:
+                print(f"[agent] generation error: {msg[:200]}", file=sys.stderr)
+            return None
+        if not text or text.upper().startswith("NO_COMMENT"):
+            return None
+        return text
+
     def _mock_line(self, ev: dict) -> str:
         """Deterministic, faithful-ish line so the loop is testable offline."""
         etype = ev.get("type", {}).get("name", "?")
@@ -239,51 +330,116 @@ class CommentaryAgent:
         user = prompts.build_event_prompt(ev, self.state.as_prompt_dict(), context)
         if self.mock:
             return self._mock_line(ev)
-        try:
-            from google.genai import types  # lazy import
-            client = self._client_or_build()
-            resp = client.models.generate_content(
-                model=self.model,
-                contents=user,
-                config=types.GenerateContentConfig(
-                    system_instruction=self._system,
-                    temperature=0.85,
-                    max_output_tokens=160,
-                ),
-            )
-            text = (resp.text or "").strip()
-        except Exception as exc:  # keep the live loop alive on any API hiccup
-            msg = str(exc)
-            if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
-                # Free-tier Gemini allows only a few requests/minute; one call per
-                # commentary-worthy event blows past it. Collapse the flood into a
-                # single concise hint instead of dumping the full quota JSON.
-                if not getattr(self, "_rate_limit_warned", False):
-                    print("[agent] Gemini rate limit hit (HTTP 429). The free tier is "
-                          "very low (~5 req/min). Use --mock for the full match, demo "
-                          "real Gemini on a short clip/the sample, or enable billing.",
-                          file=sys.stderr)
-                    self._rate_limit_warned = True
-            else:
-                print(f"[agent] generation error: {msg[:200]}", file=sys.stderr)
+        return self._generate_text_prompt(user)
+
+    def _generate_color(self, ev: dict, context: Optional[dict] = None) -> Optional[str]:
+        """Generate one analyst color line for a lull."""
+        return self.color_commentator.comment(
+            ev,
+            self.state.as_prompt_dict(),
+            context_client=self.context_client,
+            tallies=self.tallies,
+            context=context,
+        )
+
+    def _record_item(self, item: CommentaryItem) -> CommentaryItem:
+        """Update pacing history after a line/script has been emitted."""
+        self.state.last_comment_s = self.state.match_seconds()
+        self.lull_detector.note_comment(self.state.match_seconds())
+        self.state.recent_lines.append(item.text)
+        return item
+
+    def _line_item(self, ev: dict, text: str, kind: str, speaker: str) -> CommentaryItem:
+        """Build a structured item for a single-speaker line."""
+        return CommentaryItem(
+            event=ev,
+            text=text,
+            kind=kind,
+            speaker=speaker,
+            turns=[Turn(speaker, text)],
+        )
+
+    def _script_item(self, ev: dict, script: DialogueScript, kind: str) -> CommentaryItem:
+        """Build a structured item for a lead/analyst script."""
+        text = script.as_text()
+        speaker = script.turns[0].speaker if script.turns else LEAD
+        return CommentaryItem(event=ev, text=text, kind=kind, speaker=speaker, turns=script.turns)
+
+    def _handle_two_speakers(
+        self,
+        ev: dict,
+        imp: float,
+        will_comment: bool,
+        is_lull: bool,
+    ) -> Optional[CommentaryItem]:
+        """Generate a strict lead/analyst script for this moment."""
+        plan = self.turn_controller.plan(ev, imp, is_lull)
+        if plan is None and will_comment:
+            plan = TurnPlan("call", [LEAD])
+        if plan is None:
             return None
-        if not text or text.upper().startswith("NO_COMMENT"):
+
+        context = self.fetch_context(ev)
+        color_hint = ""
+        if plan.kind == "color":
+            color_hint = self._generate_color(ev, context=context) or ""
+            if not color_hint:
+                return None
+
+        script = self.crew.generate_script(
+            ev,
+            self.state.as_prompt_dict(),
+            plan,
+            context=context,
+            color_hint=color_hint,
+        )
+        if not script.turns and color_hint:
+            script = DialogueScript([Turn(ANALYST, color_hint)])
+        if not script.turns:
             return None
-        return text
+
+        if plan.kind == "color":
+            self.lull_detector.note_comment(self.state.match_seconds())
+        return self._record_item(self._script_item(ev, script, plan.kind))
 
     # -- public API --------------------------------------------------------- #
-    def handle(self, ev: dict) -> Optional[str]:
-        """Process one event; return a commentary line or None."""
+    def handle_item(self, ev: dict) -> Optional[CommentaryItem]:
+        """Process one event; return structured commentary or None."""
         self._advance_clock(ev)
+        seconds = self.state.match_seconds()
+        imp = importance(ev)
+        self.tallies.observe(ev)
+        self.lull_detector.observe_importance(seconds, imp)
         will_comment = self.should_comment(ev)
+        is_lull = (
+            self.dead_air_enabled
+            and not will_comment
+            and self.lull_detector.is_lull(seconds)
+        )
         self._apply_score(ev)  # score updated before we generate the goal line
-        if not will_comment:
+        if not will_comment and not is_lull:
             return None
+
+        if self.two_speakers:
+            return self._handle_two_speakers(ev, imp, will_comment, is_lull)
+
+        if is_lull:
+            line = self._generate_color(ev)
+            if not line:
+                return None
+            self.lull_detector.note_comment(seconds)
+            return self._record_item(self._line_item(ev, line, "color", ANALYST))
+
         line = self._generate(ev)
-        if line:
-            self.state.last_comment_s = self.state.match_seconds()
-            self.state.recent_lines.append(line)
-        return line
+        if not line:
+            return None
+        kind = "goal" if self.turn_controller.is_goal(ev) else "call"
+        return self._record_item(self._line_item(ev, line, kind, LEAD))
+
+    def handle(self, ev: dict) -> Optional[str]:
+        """Process one event; return commentary text or None."""
+        item = self.handle_item(ev)
+        return item.text if item else None
 
     def run(self, events: Iterable[dict]) -> Iterator[tuple]:
         """Consume an event stream (e.g. the replayer) and yield (event, line)."""
@@ -291,6 +447,13 @@ class CommentaryAgent:
             line = self.handle(ev)
             if line:
                 yield ev, line
+
+    def run_items(self, events: Iterable[dict]) -> Iterator[tuple]:
+        """Consume an event stream and yield (event, structured commentary item)."""
+        for ev in events:
+            item = self.handle_item(ev)
+            if item:
+                yield ev, item
 
 
 # --------------------------------------------------------------------------- #
@@ -342,6 +505,10 @@ def main(argv: Optional[list[str]] = None) -> int:
                         help="Replay speed (match-sec/real-sec); 0 = no waiting.")
     parser.add_argument("--mock", action="store_true",
                         help="Offline: deterministic lines, no Gemini call.")
+    parser.add_argument("--no-dead-air", action="store_true",
+                        help="Disable analyst color lines during quiet stretches.")
+    parser.add_argument("--two-speakers", action="store_true",
+                        help="Generate labeled lead/analyst scripts.")
     args = parser.parse_args(argv)
 
     if not args.mock:
@@ -354,13 +521,18 @@ def main(argv: Optional[list[str]] = None) -> int:
     from replayer.event_replayer import replay  # local import to avoid a hard cycle
 
     events = _load_events(args.match_id, args.sample)
-    agent = CommentaryAgent(language=args.language, mock=args.mock)
+    agent = CommentaryAgent(
+        language=args.language,
+        mock=args.mock,
+        dead_air_enabled=not args.no_dead_air,
+        two_speakers=args.two_speakers,
+    )
 
     print(f"# MlangCast — {prompts.language_display_name(args.language)} — "
           f"{'sample' if args.match_id is None else args.match_id} "
           f"({'mock' if args.mock else agent.model})\n")
-    for ev, line in agent.run(replay(events, speed=args.speed)):
-        print(f"{ev.get('minute', 0):02d}:{ev.get('second', 0):02d}  {line}")
+    for ev, item in agent.run_items(replay(events, speed=args.speed)):
+        print(f"{ev.get('minute', 0):02d}:{ev.get('second', 0):02d}  {item.text}")
     return 0
 
 

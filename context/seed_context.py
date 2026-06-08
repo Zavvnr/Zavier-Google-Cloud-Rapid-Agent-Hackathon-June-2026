@@ -97,10 +97,12 @@ def build_seed_documents(
     lineups: Optional[Iterable[dict]] = None,
     meta: Optional[dict] = None,
     glossary: Optional[Iterable[dict]] = None,
+    player_forms: Optional[Iterable[dict]] = None,
 ) -> list[dict]:
     """Combine player, team, and glossary records into Day 3 seed documents."""
     docs = []
     docs.extend(player_docs_from_lineups(lineups or []))
+    docs.extend(dict(item) for item in (player_forms or []))
     docs.extend(team_docs_from_meta(meta))
     docs.extend(dict(item) for item in (glossary or DEFAULT_GLOSSARY))
     return docs

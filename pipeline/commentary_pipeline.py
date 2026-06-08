@@ -11,11 +11,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator, Optional
 
-from agent.commentary_agent import CommentaryAgent
+from agent.commentary_agent import CommentaryAgent, CommentaryItem
 from agent.mcp_client import build_context_client
 from agent import prompts
 from replayer.event_replayer import replay
 from tts.speak import SpeechResult, build_speaker
+from tts.multispeaker import DialogueAudio, build_multispeaker_speaker
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -27,19 +28,38 @@ class CommentaryOutput:
     event: dict
     text: str
     speech: SpeechResult
+    item: Optional[CommentaryItem] = None
+    dialogue_audio: Optional[DialogueAudio] = None
+
+    def audio_ready(self) -> bool:
+        """Return True when either single-line or dialogue TTS produced audio."""
+        return self.speech.has_audio() or bool(self.dialogue_audio and self.dialogue_audio.has_audio())
 
     def as_dict(self) -> dict:
         """Serialize one output for a web UI or JSON-lines stream."""
-        return {
+        payload = {
             "minute": self.event.get("minute", 0),
             "second": self.event.get("second", 0),
             "event_type": (self.event.get("type") or {}).get("name", ""),
             "text": self.text,
             "language": self.speech.language,
-            "audio_ready": self.speech.has_audio(),
+            "audio_ready": self.audio_ready(),
             "audio_path": str(self.speech.audio_path) if self.speech.audio_path else "",
             "tts_provider": self.speech.provider,
         }
+        if self.item is not None:
+            payload.update(self.item.as_dict())
+        if self.dialogue_audio is not None:
+            payload["turn_audio"] = [
+                {
+                    "speaker": segment.speaker,
+                    "audio_ready": segment.has_audio(),
+                    "audio_path": str(segment.audio_path) if segment.audio_path else "",
+                    "skipped_reason": segment.skipped_reason,
+                }
+                for segment in self.dialogue_audio.segments
+            ]
+        return payload
 
 
 def _env_float(name: str, default: float) -> float:
@@ -58,6 +78,8 @@ def stream_commentary(
     context_enabled: bool = False,
     tts_enabled: bool = False,
     tts_provider: str = "noop",
+    dead_air_enabled: bool = True,
+    two_speakers: bool = False,
     agent: Optional[CommentaryAgent] = None,
     speaker=None,
 ) -> Iterator[CommentaryOutput]:
@@ -72,15 +94,33 @@ def stream_commentary(
         language=language,
         mock=mock,
         context_client=context_client,
+        dead_air_enabled=dead_air_enabled,
+        two_speakers=two_speakers,
     )
-    active_speaker = speaker or build_speaker(enabled=tts_enabled, provider=tts_provider)
+    if speaker is not None:
+        active_speaker = speaker
+    elif two_speakers and tts_enabled and tts_provider == "google":
+        active_speaker = build_multispeaker_speaker(language=active_agent.language, path="B")
+    else:
+        active_speaker = build_speaker(enabled=tts_enabled, provider=tts_provider)
 
     for event in replay(events, speed=speed):
-        line = active_agent.handle(event)
-        if not line:
+        item = active_agent.handle_item(event)
+        if not item:
             continue
-        speech = active_speaker.synthesize(line, language=active_agent.language)
-        yield CommentaryOutput(event=event, text=line, speech=speech)
+        dialogue_audio = None
+        if hasattr(active_speaker, "synthesize_dialogue"):
+            dialogue_audio = active_speaker.synthesize_dialogue(item.turns)
+            speech = SpeechResult(
+                text=item.text,
+                language=active_agent.language,
+                provider=active_speaker.__class__.__name__,
+                skipped_reason="" if dialogue_audio.has_audio() else "Dialogue TTS produced no audio.",
+            )
+        else:
+            speech = active_speaker.synthesize(item.text, language=active_agent.language)
+        yield CommentaryOutput(event=event, text=item.text, speech=speech,
+                               item=item, dialogue_audio=dialogue_audio)
 
 
 def _load_events(match_id: Optional[int], use_sample: bool) -> list[dict]:
@@ -109,6 +149,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--tts", action="store_true", help="Enable Day 4 text-to-speech.")
     parser.add_argument("--tts-provider", default="noop", choices=["noop", "google"],
                         help="TTS backend when --tts is set (google = Google Cloud TTS).")
+    parser.add_argument("--no-dead-air", action="store_true",
+                        help="Disable analyst color lines during quiet stretches.")
+    parser.add_argument("--two-speakers", action="store_true",
+                        help="Generate lead/analyst scripts instead of one plain line.")
     args = parser.parse_args(argv)
 
     # Load .env so MONGODB_URI / GOOGLE_API_KEY are available for real runs.
@@ -129,6 +173,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         context_enabled=args.context,
         tts_enabled=args.tts,
         tts_provider=args.tts_provider,
+        dead_air_enabled=not args.no_dead_air,
+        two_speakers=args.two_speakers,
     ):
         print(json.dumps(item.as_dict(), ensure_ascii=False))
     return 0

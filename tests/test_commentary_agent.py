@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from agent.commentary_agent import CommentaryAgent, importance
+from agent.dead_air import LullDetector
 from replayer.event_replayer import replay
 
 
@@ -106,6 +107,65 @@ class CommentaryAgentTests(unittest.TestCase):
         self.assertIsNotNone(first_line)
         self.assertIsNone(cooled_down_line)
         self.assertIsNotNone(after_cooldown_line)
+
+    def test_dead_air_emits_analyst_color_after_quiet_opening(self) -> None:
+        """Routine early possession should eventually get analyst color, not silence."""
+        agent = CommentaryAgent(
+            language="en",
+            mock=True,
+            lull_detector=LullDetector(lull_after_s=10, color_cooldown_s=30),
+        )
+
+        first = agent.handle(pass_event(1, 0, 0, [60.0, 40.0]))
+        second = agent.handle_item(pass_event(2, 0, 10, [61.0, 40.0]))
+
+        self.assertIsNone(first)
+        self.assertIsNotNone(second)
+        self.assertEqual(second.kind, "color")
+        self.assertEqual(second.speaker, "analyst")
+        self.assertIn("color/tournament_form", second.text)
+
+    def test_dead_air_can_be_disabled(self) -> None:
+        """The old event-only pacing mode should remain available."""
+        agent = CommentaryAgent(
+            language="en",
+            mock=True,
+            dead_air_enabled=False,
+            lull_detector=LullDetector(lull_after_s=1, color_cooldown_s=30),
+        )
+
+        self.assertIsNone(agent.handle(pass_event(1, 0, 0, [60.0, 40.0])))
+        self.assertIsNone(agent.handle(pass_event(2, 0, 5, [61.0, 40.0])))
+
+    def test_two_speaker_goal_turns_are_ordered_lead_then_analyst(self) -> None:
+        """Goal moments should be a sequential lead call followed by analyst reaction."""
+        agent = CommentaryAgent(language="en", mock=True, two_speakers=True)
+
+        item = agent.handle_item(shot_event(1, 22, 8, "Goal"))
+
+        self.assertIsNotNone(item)
+        self.assertEqual(item.kind, "goal")
+        self.assertEqual([turn.speaker for turn in item.turns], ["lead", "analyst"])
+        self.assertIn("excited", item.turns[0].audio_tags)
+        self.assertIn("Lead:", item.text)
+        self.assertIn("Analyst:", item.text)
+
+    def test_two_speaker_lull_uses_analyst_color_hint_only(self) -> None:
+        """Lull commentary should be analyst-led rather than a lead play call."""
+        agent = CommentaryAgent(
+            language="en",
+            mock=True,
+            two_speakers=True,
+            lull_detector=LullDetector(lull_after_s=5, color_cooldown_s=30),
+        )
+
+        self.assertIsNone(agent.handle_item(pass_event(1, 0, 0, [60.0, 40.0])))
+        item = agent.handle_item(pass_event(2, 0, 5, [61.0, 40.0]))
+
+        self.assertIsNotNone(item)
+        self.assertEqual(item.kind, "color")
+        self.assertEqual([turn.speaker for turn in item.turns], ["analyst"])
+        self.assertIn("color/tournament_form", item.turns[0].text)
 
     def test_replayer_to_agent_mock_pipeline_yields_commentary_lines(self) -> None:
         """The Day 2 integration path should stream replayed events into the agent."""

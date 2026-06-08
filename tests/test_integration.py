@@ -26,6 +26,7 @@ from agent.commentary_agent import CommentaryAgent
 from agent.mcp_client import MongoMCPContextClient, NoOpContextClient
 from context.seed_context import build_seed_documents, seed_context_store
 from pipeline.commentary_pipeline import stream_commentary
+from tts.multispeaker import DialogueAudio, TurnAudio
 from tts.speak import GoogleCloudSpeaker, NoOpSpeaker, build_speaker
 
 REPO = Path(__file__).resolve().parent.parent
@@ -149,6 +150,14 @@ class Day3Seeding(unittest.TestCase):
         self.assertFalse(status["ready"])
         self.assertEqual(status["pending"], len(docs))
 
+    def test_seed_documents_can_include_player_form_docs(self):
+        """Aggregated kind:player documents should share the normal seed path."""
+        docs = build_seed_documents(
+            player_forms=[{"kind": "player", "name": "Messi", "text": "1 goal."}],
+            glossary=[],
+        )
+        self.assertTrue(any(doc["kind"] == "player" and doc["text"] == "1 goal." for doc in docs))
+
 
 # --------------------------------------------------------------------------- #
 # Day 4 — TTS                                                                 #
@@ -205,6 +214,30 @@ class Day4Pipeline(unittest.TestCase):
         self.assertTrue(outputs[0].speech.has_audio())
         self.assertEqual(outputs[0].speech.language, "es-ES")   # "es" normalized
         self.assertEqual(outputs[0].as_dict()["event_type"], "Shot")
+
+    def test_pipeline_carries_two_speaker_turns_and_dialogue_audio(self):
+        """Two-speaker mode should preserve ordered turns and per-turn audio state."""
+        class FakeDialogueSpeaker:
+            def synthesize_dialogue(self, turns):
+                return DialogueAudio([
+                    TurnAudio(turn.speaker, turn.text, audio_bytes=b"AUDIO")
+                    for turn in turns
+                ])
+
+        outputs = list(stream_commentary(
+            [_shot_goal()],
+            language="en",
+            speed=0,
+            mock=True,
+            two_speakers=True,
+            speaker=FakeDialogueSpeaker(),
+        ))
+
+        self.assertEqual(len(outputs), 1)
+        payload = outputs[0].as_dict()
+        self.assertEqual([turn["speaker"] for turn in payload["turns"]], ["lead", "analyst"])
+        self.assertTrue(payload["audio_ready"])
+        self.assertEqual([turn["speaker"] for turn in payload["turn_audio"]], ["lead", "analyst"])
 
 
 class RealMatchSmoke(unittest.TestCase):
