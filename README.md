@@ -105,21 +105,57 @@ flowchart TD
 ```text
 .
 ├── README.md
-├── LICENSE                      # OSI license (e.g., MIT) — required & must be detectable
+├── LICENSE                          # OSI MIT license — required & must be detectable
+├── requirements.txt
+├── project_diagram.svg              # architecture / file-map diagram
+├── Dockerfile                       # container image for Cloud Run
+├── .dockerignore · .gcloudignore    # keep secrets / venv / caches out of image & upload
+│
 ├── data/
-│   └── loader.py                # pulls a match via statsbombpy / open-data
+│   ├── loader.py                    # download + cache a StatsBomb match (events/lineups/meta)
+│   └── cache/<match_id>/            # downloaded match JSON (git-ignored)
 ├── replayer/
-│   └── event_replayer.py        # streams events in accelerated real time
-├── agent/
-│   ├── commentary_agent.py      # Gemini 3 + Agent Builder orchestration
-│   ├── prompts/                 # pacing, faithfulness, energy, language prompts
-│   └── mcp_client.py            # calls the partner MCP server
+│   └── event_replayer.py            # stream cached events in accelerated real time
+│
+├── agent/                           # commentary agent core
+│   ├── commentary_agent.py          # Gemini generation loop: pacing, score, faithfulness, languages
+│   ├── commentary_crew.py           # Feature 2 — lead + analyst two-speaker turn-taking
+│   ├── dead_air.py                  # Feature 1 — lull detection, live tallies, color commentary
+│   ├── mcp_client.py                # MongoDB context retrieval (the partner-MCP seam)
+│   ├── seed_context.py              # Atlas vector-search seed/search reference (gemini-embedding-001)
+│   └── prompts/                     # composable system-prompt blocks
+│       ├── faithfulness.md          #   the "no inventing events" guardrail (never cut)
+│       ├── pacing.md · energy.md    #   when to speak · how to pitch it
+│       └── language.md              #   generate natively in the target language
+│
 ├── context/
-│   └── seed_context.py          # loads players/teams/standings/glossary into MongoDB
+│   ├── seed_context.py              # build + seed kind:player/team/term docs into MongoDB
+│   └── player_stats.py              # Feature 1 data — aggregate WC2022 player form → docs
+│
+├── pipeline/
+│   └── commentary_pipeline.py       # end-to-end glue: replay → context → agent → TTS
+│
 ├── tts/
-│   └── speak.py                 # text → audio
-├── web/                         # minimal UI (language + match selection)
-└── requirements.txt
+│   ├── speak.py                     # single-voice Google Cloud TTS (REST + GOOGLE_API_KEY)
+│   └── multispeaker.py              # Feature 2 audio — sequential two-voice synthesis
+│
+├── web/                             # minimal Flask UI (pick language + match, SSE stream)
+│   ├── app.py
+│   └── static/index.html
+│
+├── spike/
+│   ├── go_no_go.py                  # Day-1 throwaway: ~18 events → Gemini, eyeball quality
+│   └── sample_events.json           # bundled illustrative sample (runs with no download)
+│
+├── deploy/
+│   ├── cloudrun.md                  # Cloud Run deploy walkthrough
+│   └── deploy.sh                    # one-shot deploy script
+│
+└── tests/                           # offline unittest suite (mock + injected seams)
+    ├── test_commentary_agent.py · test_integration.py · test_feature_scaffolds.py
+    └── test_loader.py · test_prompts.py · test_replayer.py
+
+(Each Python package also contains an __init__.py.)
 ```
 
 ## Getting Started
