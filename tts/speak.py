@@ -38,14 +38,35 @@ TTS_ENDPOINT = "https://texttospeech.googleapis.com/v1/text:synthesize"
 # Nice default voices for the demo languages. Any locale not listed falls back to
 # "languageCode only", letting Cloud TTS pick a default voice for that locale.
 DEFAULT_VOICES = {
-    "en-US": "en-US-Neural2-D",
-    "en-GB": "en-GB-Neural2-B",
-    "es-ES": "es-ES-Neural2-B",
-    "es-US": "es-US-Neural2-B",
-    "fr-FR": "fr-FR-Neural2-B",
-    "pt-BR": "pt-BR-Neural2-B",
-    "de-DE": "de-DE-Neural2-B",
-    "id-ID": "id-ID-Standard-B",
+    # English
+    "en-US": "en-US-Neural2-D", "en-GB": "en-GB-Neural2-B",
+    "en-AU": "en-AU-Neural2-B", "en-IN": "en-IN-Neural2-B",
+    # Spanish / Portuguese
+    "es-ES": "es-ES-Neural2-B", "es-US": "es-US-Neural2-B",
+    "pt-BR": "pt-BR-Neural2-B", "pt-PT": "pt-PT-Wavenet-B",
+    # French / German / Italian / Dutch
+    "fr-FR": "fr-FR-Neural2-B", "fr-CA": "fr-CA-Neural2-B",
+    "de-DE": "de-DE-Neural2-B", "it-IT": "it-IT-Neural2-C",
+    "nl-NL": "nl-NL-Wavenet-B",
+    # Nordics
+    "sv-SE": "sv-SE-Wavenet-C", "da-DK": "da-DK-Wavenet-C",
+    "nb-NO": "nb-NO-Wavenet-B", "fi-FI": "fi-FI-Wavenet-A",
+    # Central / Eastern Europe
+    "pl-PL": "pl-PL-Wavenet-B", "cs-CZ": "cs-CZ-Wavenet-A",
+    "sk-SK": "sk-SK-Wavenet-A", "hu-HU": "hu-HU-Wavenet-A",
+    "ro-RO": "ro-RO-Wavenet-A", "el-GR": "el-GR-Wavenet-A",
+    "ru-RU": "ru-RU-Wavenet-D", "uk-UA": "uk-UA-Wavenet-A",
+    "tr-TR": "tr-TR-Wavenet-B",
+    # Middle East / South Asia
+    "ar-XA": "ar-XA-Wavenet-B", "he-IL": "he-IL-Wavenet-B",
+    "hi-IN": "hi-IN-Neural2-B", "bn-IN": "bn-IN-Wavenet-A",
+    "ta-IN": "ta-IN-Wavenet-A",
+    # East / Southeast Asia
+    "ja-JP": "ja-JP-Neural2-C", "ko-KR": "ko-KR-Neural2-C",
+    "cmn-CN": "cmn-CN-Wavenet-B", "yue-HK": "yue-HK-Standard-B",
+    "vi-VN": "vi-VN-Wavenet-D", "th-TH": "th-TH-Standard-A",
+    "id-ID": "id-ID-Wavenet-B", "ms-MY": "ms-MY-Wavenet-B",
+    "fil-PH": "fil-PH-Wavenet-A",
 }
 
 
@@ -106,9 +127,15 @@ class GoogleCloudSpeaker:
     transport: Optional[Callable[[str, dict, str], dict]] = None
 
     def __post_init__(self) -> None:
-        """Pull the API key from the environment (names only; no .env parsing)."""
+        """Pull the API key from the environment (names only; no .env parsing).
+
+        Prefers GOOGLE_TTS_API_KEY so TTS can use a separate, Cloud-restricted key
+        while GOOGLE_API_KEY stays your Gemini key. (Google won't let one restricted
+        key cover both the Gemini API and Cloud Text-to-Speech.) Falls back to
+        GOOGLE_API_KEY when GOOGLE_TTS_API_KEY isn't set.
+        """
         if self.api_key is None:
-            self.api_key = os.getenv("GOOGLE_API_KEY")
+            self.api_key = os.getenv("GOOGLE_TTS_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
     def _voice_options(self, language: str) -> list[dict]:
         """Voice payloads to try, in order (named voice first, then locale-only)."""

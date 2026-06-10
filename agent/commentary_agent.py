@@ -277,7 +277,7 @@ class CommentaryAgent:
             self._client = build_gemini_client()
         return self._client
 
-    def _generate_text_prompt(self, prompt: str, max_output_tokens: int = 512) -> Optional[str]:
+    def _generate_text_prompt(self, prompt: str, max_output_tokens: int = 2048) -> Optional[str]:
         """Generate text from an already-built prompt, keeping API failures fail-safe."""
         try:
             from google.genai import types  # lazy import
@@ -288,6 +288,11 @@ class CommentaryAgent:
                 config=types.GenerateContentConfig(
                     system_instruction=self._system,
                     temperature=0.85,
+                    # Headroom so a spoken line never truncates mid-word. On a
+                    # "thinking" model (e.g. gemini-3.x) the hidden reasoning shares
+                    # this budget, so a low cap clips the answer if thinking_budget=0
+                    # isn't honored. gemini-2.5-flash honors thinking_budget=0 (no
+                    # thinking) and is the cheapest/most reliable pick for one-liners.
                     max_output_tokens=max_output_tokens,
                     thinking_config=types.ThinkingConfig(thinking_budget=0),
                 ),

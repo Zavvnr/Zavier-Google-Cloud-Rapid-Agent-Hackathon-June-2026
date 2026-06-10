@@ -121,6 +121,25 @@ def _remove_analyst_goal_call(text: str) -> str:
     return (text or "").strip()
 
 
+# A SHORT, fact-free analyst reaction per language — used ONLY as a reliability net
+# when the model returns a goal's lead call but no analyst turn (see generate_script).
+_GOAL_ANALYST_FALLBACK = {
+    "en": "And what a finish — composed when it mattered most.",
+    "es": "¡Y qué definición! Frío como el hielo en el momento clave.",
+    "id": "Dan sebuah penyelesaian yang luar biasa — sangat tenang di saat krusial.",
+    "fr": "Et quelle finition — d'un sang-froid total au meilleur moment.",
+    "pt": "E que finalização — friíssimo no momento decisivo.",
+    "de": "Und was für ein Abschluss — eiskalt im entscheidenden Moment.",
+    "it": "E che conclusione — glaciale nel momento decisivo.",
+}
+
+
+def _goal_analyst_fallback(language: str) -> str:
+    """Return a short analyst goal reaction for `language` (defaults to English)."""
+    return _GOAL_ANALYST_FALLBACK.get((language or "en")[:2].lower(),
+                                      _GOAL_ANALYST_FALLBACK["en"])
+
+
 @dataclass
 class CommentaryCrew:
     """
@@ -166,9 +185,17 @@ class CommentaryCrew:
         allowed = set(plan.speakers)
         script.turns = [turn for turn in script.turns if turn.speaker in allowed]
         if plan.kind == "goal":
+            has_analyst = False
             for turn in script.turns:
                 if turn.speaker == ANALYST:
                     turn.text = _remove_analyst_goal_call(turn.text)
+                    has_analyst = True
+            # Reliability net: a goal should ALWAYS get an analyst beat after the
+            # lead's call. If the model returned only the lead line (or the analyst
+            # turn was dropped/truncated), append a short, fact-free reaction so the
+            # two-speaker goal never falls flat.
+            if not has_analyst and any(t.speaker == LEAD for t in script.turns):
+                script.turns.append(Turn(ANALYST, _goal_analyst_fallback(self.language)))
         return script
 
     def _mock_script(self, ev, plan: TurnPlan, color_hint: str = "") -> DialogueScript:

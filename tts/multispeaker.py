@@ -28,12 +28,28 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, List, Optional
 
-# Distinct demo voices per role (Path B). Tune to taste.
+# Two DISTINCT voices per role (Path B), so the lead and analyst sound different.
+# Any locale not listed falls back to the locale default voice for both roles
+# (still audible, just not distinct). lead = male-ish, analyst = a contrasting voice.
 ROLE_VOICES = {
     "en-US": {"lead": "en-US-Neural2-D", "analyst": "en-US-Neural2-A"},
+    "en-GB": {"lead": "en-GB-Neural2-B", "analyst": "en-GB-Neural2-A"},
     "es-ES": {"lead": "es-ES-Neural2-B", "analyst": "es-ES-Neural2-C"},
+    "es-US": {"lead": "es-US-Neural2-B", "analyst": "es-US-Neural2-A"},
+    "pt-BR": {"lead": "pt-BR-Neural2-B", "analyst": "pt-BR-Neural2-A"},
     "fr-FR": {"lead": "fr-FR-Neural2-B", "analyst": "fr-FR-Neural2-A"},
-    "id-ID": {"lead": "id-ID-Standard-B", "analyst": "id-ID-Standard-A"},
+    "de-DE": {"lead": "de-DE-Neural2-B", "analyst": "de-DE-Neural2-C"},
+    "it-IT": {"lead": "it-IT-Neural2-C", "analyst": "it-IT-Neural2-A"},
+    "nl-NL": {"lead": "nl-NL-Wavenet-B", "analyst": "nl-NL-Wavenet-A"},
+    "ru-RU": {"lead": "ru-RU-Wavenet-D", "analyst": "ru-RU-Wavenet-C"},
+    "tr-TR": {"lead": "tr-TR-Wavenet-B", "analyst": "tr-TR-Wavenet-A"},
+    "ar-XA": {"lead": "ar-XA-Wavenet-B", "analyst": "ar-XA-Wavenet-A"},
+    "hi-IN": {"lead": "hi-IN-Neural2-B", "analyst": "hi-IN-Neural2-A"},
+    "ja-JP": {"lead": "ja-JP-Neural2-C", "analyst": "ja-JP-Neural2-B"},
+    "ko-KR": {"lead": "ko-KR-Neural2-C", "analyst": "ko-KR-Neural2-A"},
+    "cmn-CN": {"lead": "cmn-CN-Wavenet-B", "analyst": "cmn-CN-Wavenet-A"},
+    "vi-VN": {"lead": "vi-VN-Wavenet-D", "analyst": "vi-VN-Wavenet-A"},
+    "id-ID": {"lead": "id-ID-Wavenet-B", "analyst": "id-ID-Wavenet-A"},
 }
 
 
