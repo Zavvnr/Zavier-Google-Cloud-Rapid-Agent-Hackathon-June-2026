@@ -12,3 +12,5 @@ product: the line is composed in {language_name}, not translated from English.
 - Keep player and team names in their proper form; do not translate proper nouns.
 - Numbers, score, and clock should read naturally in {language_name}.
 - Keep it speakable: this goes to a {language_name} text-to-speech voice.
+
+## English

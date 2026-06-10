@@ -27,6 +27,8 @@ from __future__ import annotations
 
 import json
 import os
+import threading
+import time
 from pathlib import Path
 
 from flask import Flask, Response, jsonify, request, send_from_directory
@@ -65,6 +67,38 @@ def _match_label(match_id: str) -> str:
         except Exception:
             pass
     return f"Match {match_id}"
+
+
+# --------------------------------------------------------------------------- #
+# Agent Builder (ADK) + MongoDB MCP — the compliant path, exposed on demand.   #
+# One shared, warm commentator is reused across requests (lazy-built on first  #
+# use so the web app imports fine even without google-adk installed).          #
+# --------------------------------------------------------------------------- #
+_COMMENTATOR = None
+_COMMENTATOR_LOCK = threading.Lock()
+
+
+def _get_commentator():
+    """Lazily build ONE shared AdkCommentator (keeps the MCP connection warm)."""
+    global _COMMENTATOR
+    if _COMMENTATOR is None:
+        with _COMMENTATOR_LOCK:
+            if _COMMENTATOR is None:
+                from mlangcast_agent.agent import AdkCommentator  # needs google-adk + mcp + Node
+                _COMMENTATOR = AdkCommentator()
+    return _COMMENTATOR
+
+
+def _first_notable_event(events: list[dict]) -> dict | None:
+    """Pick a goal if present, else the first shot, else a midpoint event."""
+    first_shot = None
+    for ev in events:
+        if (ev.get("type") or {}).get("name") == "Shot":
+            if first_shot is None:
+                first_shot = ev
+            if ((ev.get("shot") or {}).get("outcome") or {}).get("name") == "Goal":
+                return ev
+    return first_shot or (events[len(events) // 2] if events else None)
 
 
 def create_app() -> Flask:
@@ -159,6 +193,53 @@ def create_app() -> Flask:
         if not result.has_audio():
             return jsonify({"error": result.skipped_reason}), 503
         return Response(result.audio_bytes, mimetype=result.mime_type)
+
+    @app.get("/api/agent_line")
+    def agent_line():
+        """
+        Run ONE notable event through the Agent Builder (ADK) agent, which calls
+        the MongoDB MCP server for context, then writes a faithful line in Gemini.
+
+        This is the compliant Gemini + Agent Builder + partner-MCP path. It's slow
+        per call (tool-calling loop), so it's exposed as an on-demand "highlight"
+        button rather than the full stream. Fail-safe: returns 503 if ADK/Node/
+        Mongo/Gemini aren't set up, so the rest of the UI keeps working.
+        """
+        match = request.args.get("match", "sample")
+        language = request.args.get("language", os.getenv("DEFAULT_LANGUAGE", "es-ES"))
+        try:
+            events = _load_events(match)
+        except FileNotFoundError as exc:
+            return jsonify({"error": str(exc)}), 404
+
+        ev = _first_notable_event(events)
+        if not ev:
+            return jsonify({"error": "no notable event in this match"}), 404
+        state = {
+            "clock": f"{ev.get('minute', 0):02d}:{ev.get('second', 0):02d}",
+            "period": ev.get("period", 1),
+        }
+        try:
+            t0 = time.time()
+            line = _get_commentator().generate(ev, state, language)
+            elapsed = round(time.time() - t0, 1)
+        except Exception as exc:  # ADK/mcp not installed, Node missing, etc.
+            return jsonify({"error": f"agent unavailable: {exc}"}), 503
+        if not line:
+            return jsonify({"error": "agent returned nothing (timeout or setup); "
+                                     "check ADK + Node + Atlas + Gemini."}), 503
+        return jsonify({
+            "via": "agent-builder (ADK) + mongodb-mcp",
+            "language": language,
+            "elapsed_s": elapsed,
+            "event": {
+                "minute": ev.get("minute", 0), "second": ev.get("second", 0),
+                "type": (ev.get("type") or {}).get("name"),
+                "player": (ev.get("player") or {}).get("name"),
+                "team": (ev.get("team") or {}).get("name"),
+            },
+            "line": line,
+        })
 
     return app
 

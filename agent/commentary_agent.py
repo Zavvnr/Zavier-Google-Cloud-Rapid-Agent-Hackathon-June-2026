@@ -277,7 +277,7 @@ class CommentaryAgent:
             self._client = build_gemini_client()
         return self._client
 
-    def _generate_text_prompt(self, prompt: str, max_output_tokens: int = 160) -> Optional[str]:
+    def _generate_text_prompt(self, prompt: str, max_output_tokens: int = 512) -> Optional[str]:
         """Generate text from an already-built prompt, keeping API failures fail-safe."""
         try:
             from google.genai import types  # lazy import
@@ -289,6 +289,7 @@ class CommentaryAgent:
                     system_instruction=self._system,
                     temperature=0.85,
                     max_output_tokens=max_output_tokens,
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
                 ),
             )
             text = (resp.text or "").strip()
