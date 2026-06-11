@@ -72,14 +72,30 @@ class TurnTakingController:
         self.is_goal = is_goal or _default_is_goal
         self.call_importance = call_importance
 
+    def _is_chance(self, ev: dict) -> bool:
+        """A shot, or a pass that creates a chance near the box — gets lead + analyst."""
+        etype = (ev.get("type") or {}).get("name", "")
+        if etype == "Shot":
+            return True
+        if etype == "Pass":
+            p = ev.get("pass") or {}
+            if p.get("shot_assist") or p.get("goal_assist"):
+                return True
+            end = p.get("end_location")
+            if end and len(end) >= 2 and end[0] >= 102 and 18 <= end[1] <= 62:
+                return True
+        return False
+
     def plan(self, ev: dict, importance: float, is_lull: bool) -> Optional[TurnPlan]:
         """Return a TurnPlan, or None to stay silent."""
         if self.is_goal(ev):
             return TurnPlan("goal", [LEAD, ANALYST])     # lead's big call, then analyst
+        if self._is_chance(ev):
+            return TurnPlan("chance", [LEAD, ANALYST])   # shot / chance near box -> analyst reacts after
         if importance >= self.call_importance:
-            return TurnPlan("call", [LEAD])              # lead play-by-play
+            return TurnPlan("call", [LEAD])              # lead play-by-play (ball movement)
         if is_lull:
-            return TurnPlan("color", [ANALYST])          # analyst-led dead-air color
+            return TurnPlan("color", [ANALYST])          # analyst-led player color (rare)
         return None                                       # quiet
 
 

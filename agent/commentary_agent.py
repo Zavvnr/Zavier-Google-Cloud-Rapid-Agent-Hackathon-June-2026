@@ -62,6 +62,14 @@ def _in_box(loc) -> bool:
     return bool(loc) and len(loc) >= 2 and loc[0] >= 102 and 18 <= loc[1] <= 62
 
 
+def _progressive(start, end, min_gain: float = 18.0) -> bool:
+    """A pass that meaningfully advances the ball upfield — the 'ball movement' the
+    commentary follows between the big moments."""
+    if not (start and end and len(start) >= 1 and len(end) >= 1):
+        return False
+    return (end[0] - start[0]) >= min_gain and end[0] >= 60
+
+
 def importance(ev: dict) -> float:
     """How noteworthy is this event, in [0, 1]?"""
     etype = ev.get("type", {}).get("name", "")
@@ -93,15 +101,21 @@ def importance(ev: dict) -> float:
         return 0.8
     if etype == "Pass":
         p = ev.get("pass", {})
-        if (p.get("technique") or {}).get("name") == "Through Ball":
-            return 0.5
-        if p.get("cross"):
-            return 0.45
+        end = p.get("end_location")
+        # Chance creation near the box scores highest (lead calls it, analyst reacts).
         if p.get("shot_assist") or p.get("goal_assist"):
-            return 0.6
-        if _in_box(p.get("end_location")):
-            return 0.45
-        return 0.1
+            return 0.75
+        if _in_box(end):
+            return 0.7                                   # ball played into the box = a chance
+        if (p.get("technique") or {}).get("name") == "Through Ball":
+            return 0.55
+        if p.get("cross"):
+            return 0.5
+        # Ball-MOVEMENT filler: progressive passes that carry play forward, so the
+        # agent narrates the ball travelling up the pitch between the big moments.
+        if _progressive(ev.get("location"), end) or (end and len(end) >= 1 and end[0] >= 80):
+            return 0.42
+        return 0.12
     if etype == "Dribble":
         complete = (ev.get("dribble", {}).get("outcome") or {}).get("name") == "Complete"
         return 0.35 if complete and _in_box(ev.get("location")) else 0.15
@@ -419,6 +433,22 @@ class CommentaryAgent:
         return self._record_item(self._script_item(ev, script, plan.kind))
 
     # -- public API --------------------------------------------------------- #
+    def opening(self, competition: str = "", home: str = "", away: str = "") -> Optional[CommentaryItem]:
+        """Emit ONE scene-setting line before kickoff, e.g. 'Welcome — here at the
+        World Cup final, Argentina meet France.' Templated in mock, Gemini otherwise."""
+        comp = competition or "today's match"
+        teams = f"{home} vs {away}" if home and away else "the two sides"
+        if self.mock:
+            text = f"[{self.language}] Welcome — here at {comp}, it's {teams}. Let's get under way!"
+        else:
+            prompt = (
+                f"Write ONE short spoken OPENING line of live football commentary in "
+                f"{self.language}, welcoming viewers and setting the scene: "
+                f"competition = {comp}; fixture = {teams}. Output the line only — no labels."
+            )
+            text = self._generate_text_prompt(prompt) or f"[{self.language}] Welcome to {comp}."
+        return self._line_item({}, text, "opening", LEAD)
+
     def handle_item(self, ev: dict) -> Optional[CommentaryItem]:
         """Process one event; return structured commentary or None."""
         self._advance_clock(ev)
@@ -427,9 +457,16 @@ class CommentaryAgent:
         self.tallies.observe(ev)
         self.lull_detector.observe_importance(seconds, imp)
         will_comment = self.should_comment(ev)
+        # Player color only when the on-ball player is actually creating movement
+        # (a pass/dribble/carry) — not on every quiet defensive touch.
+        creative = (
+            ev.get("type", {}).get("name", "") in ("Pass", "Dribble", "Carry")
+            and bool((ev.get("player") or {}).get("name"))
+        )
         is_lull = (
             self.dead_air_enabled
             and not will_comment
+            and creative
             and self.lull_detector.is_lull(seconds)
         )
         self._apply_score(ev)  # score updated before we generate the goal line

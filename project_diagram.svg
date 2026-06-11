@@ -6,73 +6,60 @@
     <marker id="arrowGreen" markerWidth="10" markerHeight="8" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L8,3 L0,6 Z" fill="#00875A"/>
     </marker>
+    <marker id="arrowGold" markerWidth="10" markerHeight="8" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#c98a1b"/>
+    </marker>
   </defs>
-
   <rect x="0" y="0" width="1000" height="820" fill="#ffffff"/>
-
   <text x="500" y="40" text-anchor="middle" font-size="27" font-weight="700" fill="#1a2233">MlangCast — Architecture</text>
   <text x="500" y="63" text-anchor="middle" font-size="13.5" fill="#5b6b8c">Multilingual AI football commentary for matches that have no commentator — Gemini + Agent Builder + MongoDB MCP</text>
-
   <rect x="26" y="84" width="948" height="648" rx="14" fill="#fbfdff" stroke="#4285F4" stroke-width="1.5" stroke-dasharray="7 6"/>
   <text x="44" y="106" font-size="13" font-weight="600" fill="#4285F4">Google Cloud Run — public demo URL (Dockerfile + gunicorn web.app:app)</text>
-
   <rect x="58" y="126" width="180" height="56" rx="9" fill="#eef2fb" stroke="#5b6b8c" stroke-width="1.6"/>
   <text x="148" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#1a2233">User</text>
   <text x="148" y="169" text-anchor="middle" font-size="11.5" fill="#5b6b8c">picks language + match</text>
-
   <rect x="300" y="126" width="372" height="56" rx="9" fill="#e8f0fe" stroke="#4285F4" stroke-width="1.8"/>
   <text x="486" y="149" text-anchor="middle" font-size="14" font-weight="700" fill="#174ea6">Web UI — Flask + Server-Sent Events</text>
   <text x="486" y="168" text-anchor="middle" font-size="11" fill="#3c5a99">language · match · toggles (audio · two-speaker · intensity) · streamed text + audio</text>
-
   <rect x="58" y="238" width="200" height="92" rx="9" fill="#f4f5f7" stroke="#7a869a" stroke-width="1.6"/>
   <text x="158" y="261" text-anchor="middle" font-size="13.5" font-weight="700" fill="#2b333f">StatsBomb Open Data</text>
   <text x="158" y="280" text-anchor="middle" font-size="11" fill="#5b6b8c">timestamped event JSON</text>
-  <text x="158" y="298" text-anchor="middle" font-size="11" fill="#5b6b8c">cached matches: WC2022 final,</text>
+  <text x="158" y="298" text-anchor="middle" font-size="11" fill="#5b6b8c">cached: WC2022 final,</text>
   <text x="158" y="314" text-anchor="middle" font-size="11" fill="#5b6b8c">MLS · Ligue 1 · Indian Super Lg</text>
-
   <rect x="58" y="372" width="200" height="60" rx="9" fill="#f4f5f7" stroke="#7a869a" stroke-width="1.6"/>
   <text x="158" y="397" text-anchor="middle" font-size="13.5" font-weight="700" fill="#2b333f">Event Replayer</text>
   <text x="158" y="416" text-anchor="middle" font-size="11" fill="#5b6b8c">accelerated real-time stream</text>
-
   <rect x="298" y="214" width="384" height="262" rx="12" fill="#f5f8ff" stroke="#4285F4" stroke-width="1.6"/>
   <text x="314" y="234" font-size="13" font-weight="700" fill="#174ea6">Agent Core — Gemini (native-language generation)</text>
-
   <rect x="314" y="244" width="352" height="62" rx="8" fill="#ffffff" stroke="#4285F4" stroke-width="1.4"/>
   <text x="490" y="266" text-anchor="middle" font-size="13" font-weight="700" fill="#174ea6">Commentary Agent</text>
-  <text x="490" y="284" text-anchor="middle" font-size="11" fill="#3c5a99">pacing (when to speak) · score tracking</text>
+  <text x="490" y="284" text-anchor="middle" font-size="11" fill="#3c5a99">opening line · follows the ball · pacing · score</text>
   <text x="490" y="299" text-anchor="middle" font-size="11" fill="#3c5a99">faithfulness guardrail (no invented events)</text>
-
   <rect x="314" y="316" width="172" height="70" rx="8" fill="#ffffff" stroke="#36a37a" stroke-width="1.4"/>
   <text x="400" y="337" text-anchor="middle" font-size="12" font-weight="700" fill="#1f6f52">Feature 1 — dead air</text>
   <text x="400" y="354" text-anchor="middle" font-size="10.3" fill="#2b7a5c">lull detection · live tallies</text>
-  <text x="400" y="369" text-anchor="middle" font-size="10.3" fill="#2b7a5c">per-player color spacing</text>
+  <text x="400" y="369" text-anchor="middle" font-size="10.3" fill="#2b7a5c">rare player color, spaced</text>
   <text x="400" y="382" text-anchor="middle" font-size="10.3" fill="#2b7a5c">(different fact, then silence)</text>
-
   <rect x="494" y="316" width="172" height="70" rx="8" fill="#ffffff" stroke="#c98a1b" stroke-width="1.4"/>
   <text x="580" y="337" text-anchor="middle" font-size="12" font-weight="700" fill="#8a5e0c">Feature 2 — crew</text>
   <text x="580" y="354" text-anchor="middle" font-size="10.3" fill="#9a6b14">lead + analyst turn-taking</text>
-  <text x="580" y="369" text-anchor="middle" font-size="10.3" fill="#9a6b14">sequential two-speaker</text>
-  <text x="580" y="382" text-anchor="middle" font-size="10.3" fill="#9a6b14">goal call, then reaction</text>
-
+  <text x="580" y="369" text-anchor="middle" font-size="10.3" fill="#9a6b14">goal / chance call,</text>
+  <text x="580" y="382" text-anchor="middle" font-size="10.3" fill="#9a6b14">then analyst reacts</text>
   <rect x="314" y="396" width="352" height="64" rx="8" fill="#eef6ff" stroke="#4285F4" stroke-width="1.2" stroke-dasharray="4 4"/>
   <text x="490" y="420" text-anchor="middle" font-size="12" font-weight="700" fill="#174ea6">Compliant path — Agent Builder (ADK)</text>
   <text x="490" y="438" text-anchor="middle" font-size="10.6" fill="#3c5a99">mlangcast_agent: LlmAgent + McpToolset</text>
   <text x="490" y="452" text-anchor="middle" font-size="10.6" fill="#3c5a99">root_agent decides when to call MCP tools</text>
-
   <rect x="722" y="244" width="218" height="58" rx="9" fill="#e7faf1" stroke="#00875A" stroke-width="1.8"/>
   <text x="831" y="267" text-anchor="middle" font-size="13" font-weight="700" fill="#00684A">MongoDB MCP server</text>
   <text x="831" y="286" text-anchor="middle" font-size="11" fill="#1f7a5c">npx mongodb-mcp-server (read-only)</text>
-
   <rect x="722" y="330" width="218" height="74" rx="9" fill="#e7faf1" stroke="#00875A" stroke-width="1.8"/>
   <text x="831" y="354" text-anchor="middle" font-size="13" font-weight="700" fill="#00684A">MongoDB Atlas</text>
   <text x="831" y="373" text-anchor="middle" font-size="11" fill="#1f7a5c">Vector Search context store</text>
   <text x="831" y="389" text-anchor="middle" font-size="11" fill="#1f7a5c">players · teams · glossary</text>
-
   <rect x="298" y="500" width="384" height="74" rx="11" fill="#f3edfb" stroke="#7b4dc4" stroke-width="1.8"/>
   <text x="490" y="524" text-anchor="middle" font-size="13.5" font-weight="700" fill="#5b2ea6">Text-to-Speech (synced audio)</text>
   <text x="490" y="543" text-anchor="middle" font-size="11" fill="#6b3fb0">Chirp 3: HD voices (default) · Gemini-TTS, promptable (opt-in)</text>
   <text x="490" y="560" text-anchor="middle" font-size="11" fill="#6b3fb0">event importance → speaking rate · two distinct lead/analyst voices</text>
-
   <line x1="238" y1="154" x2="296" y2="154" stroke="#5b6b8c" stroke-width="2" marker-end="url(#arrow)"/>
   <line x1="486" y1="182" x2="486" y2="212" stroke="#5b6b8c" stroke-width="2" marker-end="url(#arrow)"/>
   <text x="496" y="201" font-size="10.5" fill="#5b6b8c">start</text>
@@ -87,6 +74,11 @@
   <line x1="490" y1="476" x2="490" y2="498" stroke="#5b6b8c" stroke-width="2" marker-end="url(#arrow)"/>
   <path d="M298,537 H274 V154 H296" fill="none" stroke="#7b4dc4" stroke-width="2" marker-end="url(#arrow)"/>
   <text x="266" y="360" font-size="11" fill="#6b3fb0" transform="rotate(-90 266 360)">streamed text + audio</text>
-
-  <text x="500" y="760" text-anchor="middle" font-size="11.5" fill="#7a869a">Data: StatsBomb Open Data (attribution required) · Commentary generated natively per language — no translation, no speech-to-text</text>
+  <rect x="44" y="600" width="232" height="74" rx="9" fill="#fff7e6" stroke="#c98a1b" stroke-width="1.6" stroke-dasharray="6 5"/>
+  <text x="160" y="622" text-anchor="middle" font-size="12" font-weight="700" fill="#8a5e0c">Future — live commentary</text>
+  <text x="160" y="640" text-anchor="middle" font-size="10.2" fill="#9a6b14">live video → computer vision → live events</text>
+  <text x="160" y="656" text-anchor="middle" font-size="10.2" fill="#9a6b14">same schema → same agent (a source swap)</text>
+  <path d="M160,600 V436" fill="none" stroke="#c98a1b" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#arrowGold)"/>
+  <text x="168" y="524" font-size="10" fill="#9a6b14">alt. live source</text>
+  <text x="560" y="760" text-anchor="middle" font-size="11.5" fill="#7a869a">Data: StatsBomb Open Data (attribution required) · Commentary generated natively per language</text>
 </svg>

@@ -88,6 +88,24 @@ def tempo_for(item: CommentaryItem, base: float = 1.0, span: float = 0.30) -> fl
     return round(base + span * intensity, 3)
 
 
+def _render_item(item: CommentaryItem, active_speaker, language: str):
+    """Synthesize one item's audio (dialogue or single line) at its intensity tempo.
+
+    Returns (SpeechResult, DialogueAudio|None).
+    """
+    rate = tempo_for(item)
+    if hasattr(active_speaker, "synthesize_dialogue"):
+        da = active_speaker.synthesize_dialogue(item.turns, speaking_rate=rate)
+        speech = SpeechResult(
+            text=item.text, language=language,
+            provider=active_speaker.__class__.__name__,
+            skipped_reason="" if da.has_audio() else "Dialogue TTS produced no audio.",
+        )
+        return speech, da
+    speech = active_speaker.synthesize(item.text, language=language, speaking_rate=rate)
+    return speech, None
+
+
 def stream_commentary(
     events: Iterable[dict],
     language: str = "en",
@@ -98,6 +116,7 @@ def stream_commentary(
     tts_provider: str = "noop",
     dead_air_enabled: bool = True,
     two_speakers: bool = False,
+    match_context: Optional[dict] = None,
     agent: Optional[CommentaryAgent] = None,
     speaker=None,
 ) -> Iterator[CommentaryOutput]:
@@ -125,23 +144,22 @@ def stream_commentary(
     else:
         active_speaker = build_speaker(enabled=tts_enabled, provider=tts_provider)
 
+    # Opening scene-setter before any events (templated in mock, Gemini otherwise).
+    intro = active_agent.opening(
+        competition=(match_context or {}).get("competition", ""),
+        home=(match_context or {}).get("home", ""),
+        away=(match_context or {}).get("away", ""),
+    )
+    if intro:
+        speech, da = _render_item(intro, active_speaker, active_agent.language)
+        yield CommentaryOutput(event={}, text=intro.text, speech=speech,
+                               item=intro, dialogue_audio=da)
+
     for event in replay(events, speed=speed):
         item = active_agent.handle_item(event)
         if not item:
             continue
-        rate = tempo_for(item)  # faster delivery for intense moments
-        dialogue_audio = None
-        if hasattr(active_speaker, "synthesize_dialogue"):
-            dialogue_audio = active_speaker.synthesize_dialogue(item.turns, speaking_rate=rate)
-            speech = SpeechResult(
-                text=item.text,
-                language=active_agent.language,
-                provider=active_speaker.__class__.__name__,
-                skipped_reason="" if dialogue_audio.has_audio() else "Dialogue TTS produced no audio.",
-            )
-        else:
-            speech = active_speaker.synthesize(item.text, language=active_agent.language,
-                                               speaking_rate=rate)
+        speech, dialogue_audio = _render_item(item, active_speaker, active_agent.language)
         yield CommentaryOutput(event=event, text=item.text, speech=speech,
                                item=item, dialogue_audio=dialogue_audio)
 

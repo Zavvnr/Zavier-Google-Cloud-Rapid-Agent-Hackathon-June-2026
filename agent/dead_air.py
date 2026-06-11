@@ -105,7 +105,7 @@ class LullDetector:
     """
 
     lull_after_s: int = 18          # quiet gap before color kicks in
-    color_cooldown_s: int = 60      # min spacing between ANY two color lines (raise for fewer)
+    color_cooldown_s: int = 300     # at most ONE player profile per ~5 min, and only in a genuine lull (nothing happening)
     notable_importance: float = 0.5
     _first_event_s: Optional[int] = None
     _last_notable_s: Optional[int] = None

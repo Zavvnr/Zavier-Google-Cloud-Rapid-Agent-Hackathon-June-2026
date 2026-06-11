@@ -38,8 +38,8 @@ MlangCast stands for Multiple-language Cast. It turns a structured stream of mat
 1. **Ingests** a match as a timestamped event stream (pass, shot, foul, card, goal) from StatsBomb open data.
 2. **Replays** that stream in accelerated real time to simulate a live match.
 3. An **AI agent** (Gemini 3 on Agent Builder) decides *what's worth saying* (pacing — it doesn't narrate every throw-in), *how excited to be*, and *what context to add* — then generates each line **in the target language**.
-4. During quiet stretches, an **analyst voice** fills dead air with faithful color about the player on the ball, using retrieved player context plus live in-match tallies.
-5. For two-commentator mode, the system generates a sequential **lead + analyst** script: the lead handles play-by-play and goal calls, then the analyst reacts or adds color.
+4. It **opens with a scene-setter** ("Here at the World Cup final…"), then **follows the ball** — narrating progressive passes and build-up between the big moments. **Player color** (retrieved context + live in-match tallies) is reserved for occasional lulls and spaced out per player, so it never becomes a profile dump.
+5. For two-commentator mode, the system generates a sequential **lead + analyst** script: the lead handles play-by-play and **goal / chance calls near the box**, then the analyst reacts.
 6. The agent **retrieves context** (player history, team form, standings, terminology) by calling a partner **MCP server** as a tool.
 7. **Text-to-speech** voices the commentary so the viewer can listen, not just read.
 8. A lightweight **web UI** lets the user pick a language and a match and watch the commentary stream beside a match clock.
@@ -137,7 +137,8 @@ flowchart TD
 │   └── player_stats.py              # Feature 1 data — aggregate WC2022 player form → docs
 │
 ├── pipeline/
-│   └── commentary_pipeline.py       # end-to-end glue: replay → context → agent → TTS
+│   ├── commentary_pipeline.py       # end-to-end glue: replay → context → agent → TTS (opening + intensity tempo)
+│   └── live_cv_pipeline.py          # scaffold — future live path: video → CV → events → same agent
 │
 ├── tts/
 │   ├── speak.py                     # single-voice Cloud TTS (Chirp 3: HD; GOOGLE_TTS_API_KEY); event importance → speaking rate
@@ -207,6 +208,7 @@ The web UI also ships with additional **lower-league** matches cached for variet
 ## Roadmap
 
 - **Real-time feeds** — replace replayed historical data with a live event provider (Opta / Sportradar).
+- **Live computer-vision commentary** — read events straight from the video feed (player/ball tracking + action recognition + pitch homography). The seam is already scaffolded in `pipeline/live_cv_pipeline.py`: live frames → CV → the same event schema → the same agent, so going live is a *source swap*, not a rewrite.
 - **More languages & dialects** — especially underserved ones with no broadcast commentary.
 - **Voice & style personalization** — let users choose energetic vs. measured commentary, or distinct voices.
 - **Optional translation mode** — translate an existing human feed as an alternative to native generation.
@@ -229,7 +231,7 @@ The partner technology is integrated as an **MCP server** that the agent calls a
 
 ## License
 
-Released under the **MIT License** — see [`LICENSE`](LICENSE). *(Add the actual license file before submitting; the hackathon requires a detectable open-source license at the top of the repo.)*
+Released under the **MIT License** — see [`LICENSE`](LICENSE). The license file sits at the repository root with standard MIT text, so GitHub auto-detects it and shows "MIT License" in the **About** panel (a hackathon requirement).
 
 ## Acknowledgments
 

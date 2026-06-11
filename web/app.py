@@ -69,6 +69,24 @@ def _match_label(match_id: str) -> str:
     return f"Match {match_id}"
 
 
+def _match_context(match: str) -> dict:
+    """Competition + team names from cached meta.json, for the opening scene-setter."""
+    if not match or match == "sample":
+        return {}
+    meta_path = CACHE_DIR / str(match) / "meta.json"
+    if not meta_path.exists():
+        return {}
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        return {
+            "competition": (meta.get("competition") or {}).get("competition_name", ""),
+            "home": (meta.get("home_team") or {}).get("home_team_name", ""),
+            "away": (meta.get("away_team") or {}).get("away_team_name", ""),
+        }
+    except Exception:
+        return {}
+
+
 # --------------------------------------------------------------------------- #
 # Agent Builder (ADK) + MongoDB MCP — the compliant path, exposed on demand.   #
 # One shared, warm commentator is reused across requests (lazy-built on first  #
@@ -157,6 +175,7 @@ def create_app() -> Flask:
                     tts_provider="google" if tts_enabled else "noop",
                     dead_air_enabled=dead_air_enabled,
                     two_speakers=two_speakers,
+                    match_context=_match_context(match),
                 ):
                     payload = item.as_dict()
                     if item.speech.audio_path:
