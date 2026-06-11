@@ -11,9 +11,9 @@ Built for the [Google Cloud Rapid Agent Hackathon](https://rapid-agent.devpost.c
 
 | | |
 |---|---|
-| 🌐 **Live demo** | `<hosted-project-url>` *(TBD)* |
-| 🎬 **Demo video** | `<3-min-demo-video-url>` *(TBD)* |
-| 🏷️ **Submission track** | MongoDB *(TBD [Partner Integration](#partner-integration-mcp))* |
+| 🌐 **Live demo** | `<hosted-project-url>` *https://mlangcast-680880920991.us-central1.run.app/* |
+| 🎬 **Demo video** | `<3-min-demo-video-url>` *https://youtu.be/XzbHxPWm7zg* |
+| 🏷️ **Submission track** | MongoDB |
 
 ---
 
