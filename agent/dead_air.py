@@ -105,7 +105,7 @@ class LullDetector:
     """
 
     lull_after_s: int = 18          # quiet gap before color kicks in
-    color_cooldown_s: int = 25      # minimum spacing between color lines
+    color_cooldown_s: int = 60      # min spacing between ANY two color lines (raise for fewer)
     notable_importance: float = 0.5
     _first_event_s: Optional[int] = None
     _last_notable_s: Optional[int] = None
@@ -154,21 +154,38 @@ class ColorCommentator:
     language: str = "en-US"
     generate: Optional[Callable[[str], str]] = None
     mock: bool = False
+    min_player_gap_s: int = 600     # don't re-profile the SAME player within this gap (~10 min)
     _angle_idx: Dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    _last_profiled_s: Dict[str, int] = field(default_factory=dict)
+    _said: Dict[str, list] = field(default_factory=dict)   # color lines already used per player
 
-    def _next_angle(self, player: str) -> str:
+    def _pending_angle(self, player: str) -> Optional[str]:
+        """The next UNUSED angle for this player, or None once all are spent."""
         i = self._angle_idx[player]
-        self._angle_idx[player] = i + 1
-        return ANGLES[i % len(ANGLES)]
+        return ANGLES[i] if i < len(ANGLES) else None
 
-    def build_prompt(self, player, angle, context, tally_summary, state) -> str:
+    def recently_profiled(self, player: str, seconds: int) -> bool:
+        """True if `player` already got a color line within `min_player_gap_s`."""
+        last = self._last_profiled_s.get(player)
+        return last is not None and (seconds - last) < self.min_player_gap_s
+
+    def mark_profiled(self, player: str, seconds: int) -> None:
+        """Record that `player` was just profiled, so we space out the next mention."""
+        self._last_profiled_s[player] = seconds
+
+    def build_prompt(self, player, angle, context, tally_summary, state, already_said=None) -> str:
         """Assemble the color prompt. TODO: blend with your prompts package."""
+        avoid = ""
+        if already_said:
+            avoid = (f" You ALREADY said this about {player} earlier — do NOT repeat or "
+                     f"rephrase it; bring a genuinely NEW fact: {' | '.join(already_said)}.")
         return (
             f"Color commentary in {self.language}. Player on the ball: {player}. "
             f"Angle to take: {angle}. Retrieved facts: {context or {}}. "
             f"Live tally so far: {tally_summary or 'n/a'}. Match state: {state or {}}. "
-            "Write ONE faithful sentence. Use only the facts/tallies given — never "
-            "invent stats. Tie it to the current phase, not a generic bio dump."
+            "Write ONE faithful sentence, like a human analyst reacting in the flow — "
+            "not reading a profile. Use only the facts/tallies given; never invent "
+            "stats. Tie it to the current phase, not a generic bio dump." + avoid
         )
 
     def comment(
@@ -179,11 +196,17 @@ class ColorCommentator:
         tallies: Optional[LiveTallies] = None,
         context: Optional[dict] = None,
     ) -> Optional[str]:
-        """Produce a color line for the player on the ball, or None."""
+        """Produce a NEW color line for the player on the ball, or None.
+
+        Returns None when there's nothing fresh to add — every angle for this player
+        has already been used. Silence beats repeating yourself.
+        """
         player = _name(ev.get("player"))
         if not player:
             return None
-        angle = self._next_angle(player)
+        angle = self._pending_angle(player)
+        if angle is None:
+            return None  # all angles spent for this player -> stay quiet
 
         if context is None:
             context = {}
@@ -195,11 +218,19 @@ class ColorCommentator:
         tally_summary = tallies.summary(player) if tallies else ""
 
         if self.mock or self.generate is None:
-            return f"[{self.language}|color/{angle}] {tally_summary or player} — analyst color (stub)."
+            line = f"[{self.language}|color/{angle}] {tally_summary or player} — analyst color (stub)."
+        else:
+            prompt = self.build_prompt(player, angle, context, tally_summary, state,
+                                       already_said=self._said.get(player))
+            try:
+                line = (self.generate(prompt) or "").strip()
+            except Exception:
+                return None
+            if not line:
+                return None
 
-        prompt = self.build_prompt(player, angle, context, tally_summary, state)
-        try:
-            text = (self.generate(prompt) or "").strip()
-        except Exception:
-            return None
-        return text or None
+        # Commit only on a real emitted line: spend the angle + remember what we said,
+        # so the next mention of this player must bring a different fact.
+        self._angle_idx[player] += 1
+        self._said.setdefault(player, []).append(line)
+        return line

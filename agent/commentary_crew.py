@@ -163,11 +163,18 @@ class CommentaryCrew:
             "the lead's goal call."
             if plan.kind == "goal" else ""
         )
+        persona = (
+            "Two people who clearly know each other: LEAD is the play-by-play voice — "
+            "energetic, vivid, drives the action; ANALYST is a warm ex-pro who RESPONDS to "
+            "what the lead just said, adding insight or a wry aside, sometimes agreeing or "
+            "gently pushing back. Human and conversational, never two stat-readers taking "
+            "turns. Vary your openings; no stage directions or emoji (this is spoken). "
+        )
         return (
             f"Two-speaker football commentary in {self.language}. Moment: {plan.kind}. "
             f"Speakers: {', '.join(plan.speakers)}. Event: {(ev.get('type') or {}).get('name')}. "
             f"Match state: {state or {}}. Retrieved context: {context or {}}. "
-            f"Analyst color hint: {color_hint or 'n/a'}. "
+            f"Analyst color hint: {color_hint or 'n/a'}. " + persona +
             "Write a SHORT labeled script with 'Lead:' and/or 'Analyst:' lines, "
             "faithful to the data, no invented facts." + tag_hint
         )

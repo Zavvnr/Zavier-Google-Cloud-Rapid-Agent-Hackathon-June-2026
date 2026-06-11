@@ -53,6 +53,18 @@ DEMO_MATCHES = {
     3869685: "FIFA World Cup 2022 Final — Argentina 3-3 France (pens), 2022-12-18",
 }
 
+# Lower-profile leagues that ARE in StatsBomb's open-data set (verified against
+# competitions.json), handy for `--list-matches` discovery. NOTE: the open set has
+# NO EFL Championship (England coverage is Premier League + FA WSL only), and
+# France's only league is Ligue 1 (top tier — there's no Ligue 2).
+DISCOVER_COMPETITIONS = {
+    "Major League Soccer 2023 (USA)":      {"competition_id": 44,   "season_id": 107},
+    "Ligue 1 2022/23 (France, PSG era)":   {"competition_id": 7,    "season_id": 235},
+    "Indian Super League 2021/22 (India)": {"competition_id": 1238, "season_id": 108},
+    "Liga Profesional 1981 (Argentina)":   {"competition_id": 81,   "season_id": 275},
+    "NASL 1977 (USA, Pelé era)":           {"competition_id": 116,  "season_id": 68},
+}
+
 STATSBOMB_ATTRIBUTION = (
     "Match data provided by StatsBomb Open Data "
     "(https://github.com/statsbomb/open-data). "

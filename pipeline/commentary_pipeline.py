@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator, Optional
 
-from agent.commentary_agent import CommentaryAgent, CommentaryItem
+from agent.commentary_agent import CommentaryAgent, CommentaryItem, importance
 from agent.mcp_client import build_context_client
 from agent import prompts
 from replayer.event_replayer import replay
@@ -70,6 +70,24 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def tempo_for(item: CommentaryItem, base: float = 1.0, span: float = 0.30) -> float:
+    """Map a commentary moment to a Cloud-TTS speakingRate (faster = more intense).
+
+    Uses the event's importance (goals/shots high, build-up low) so peaks are
+    delivered with urgency, like live broadcast commentary. base=1.0 keeps calm
+    moments natural; span widens the gap to the loudest moments. Tune to taste:
+    goal -> base+span (1.30), a saved shot -> ~1.24, a quiet pass -> ~1.03.
+    """
+    try:
+        intensity = importance(item.event)
+    except Exception:
+        intensity = 0.0
+    if item.kind == "goal":
+        intensity = 1.0
+    intensity = max(0.0, min(1.0, intensity))
+    return round(base + span * intensity, 3)
+
+
 def stream_commentary(
     events: Iterable[dict],
     language: str = "en",
@@ -100,7 +118,10 @@ def stream_commentary(
     if speaker is not None:
         active_speaker = speaker
     elif two_speakers and tts_enabled and tts_provider == "google":
-        active_speaker = build_multispeaker_speaker(language=active_agent.language, path="B")
+        # Path A = Gemini-TTS (promptable "sports" style); opt in with GEMINI_TTS=1.
+        # Default Path B = Chirp 3: HD (reliable). Path A auto-falls back to B on error.
+        tts_path = "A" if os.getenv("GEMINI_TTS", "0") == "1" else "B"
+        active_speaker = build_multispeaker_speaker(language=active_agent.language, path=tts_path)
     else:
         active_speaker = build_speaker(enabled=tts_enabled, provider=tts_provider)
 
@@ -108,9 +129,10 @@ def stream_commentary(
         item = active_agent.handle_item(event)
         if not item:
             continue
+        rate = tempo_for(item)  # faster delivery for intense moments
         dialogue_audio = None
         if hasattr(active_speaker, "synthesize_dialogue"):
-            dialogue_audio = active_speaker.synthesize_dialogue(item.turns)
+            dialogue_audio = active_speaker.synthesize_dialogue(item.turns, speaking_rate=rate)
             speech = SpeechResult(
                 text=item.text,
                 language=active_agent.language,
@@ -118,7 +140,8 @@ def stream_commentary(
                 skipped_reason="" if dialogue_audio.has_audio() else "Dialogue TTS produced no audio.",
             )
         else:
-            speech = active_speaker.synthesize(item.text, language=active_agent.language)
+            speech = active_speaker.synthesize(item.text, language=active_agent.language,
+                                               speaking_rate=rate)
         yield CommentaryOutput(event=event, text=item.text, speech=speech,
                                item=item, dialogue_audio=dialogue_audio)
 

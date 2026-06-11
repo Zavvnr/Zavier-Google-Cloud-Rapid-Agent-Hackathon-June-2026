@@ -181,8 +181,9 @@ def create_app() -> Flask:
 
     @app.get("/api/audio/<path:filename>")
     def audio(filename):
-        """Serve a generated mp3 from tts/out/ for synced playback."""
-        return send_from_directory(DEFAULT_OUT_DIR, filename, mimetype="audio/mpeg")
+        """Serve a generated audio file from tts/out/ (mp3 from Chirp/Wavenet, wav from Gemini-TTS)."""
+        mime = "audio/wav" if filename.lower().endswith(".wav") else "audio/mpeg"
+        return send_from_directory(DEFAULT_OUT_DIR, filename, mimetype=mime)
 
     @app.get("/api/tts")
     def tts():

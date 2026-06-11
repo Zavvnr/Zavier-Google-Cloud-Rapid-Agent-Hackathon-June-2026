@@ -48,7 +48,7 @@ Because the commentary is **generated natively in the target language**, the mul
 
 ## How It's Different
 
-| | NBC "AI Al Michaels" (Paris 2024) | IBM watsonx (Wimbledon) | **PolyCast** |
+| | NBC "AI Al Michaels" (Paris 2024) | IBM watsonx (Wimbledon) | **MlangCast** |
 |---|---|---|---|
 | **Format** | Post-event daily recaps | Highlight clips | Live-ish, full match |
 | **Languages** | English | English | Multilingual from the first whistle |
@@ -56,7 +56,7 @@ Because the commentary is **generated natively in the target language**, the mul
 | **Primary audience** | A saturated mega-event | Show-court overflow | Matches with **no** coverage |
 | **Agentic context layer** | — | — | ✅ (retrieval via MCP) |
 
-The sharpest distinction is the data path: IBM took the hard route — computer vision to reconstruct what happened on court. PolyCast reads the play directly from structured events, which is what makes a small-team build feasible and what frees the agent to focus on language, pacing, and context.
+The sharpest distinction is the data path: IBM took the hard route — computer vision to reconstruct what happened on court. MlangCast reads the play directly from structured events, which is what makes a small-team build feasible and what frees the agent to focus on language, pacing, and context.
 
 ## Tech Stack
 
@@ -66,7 +66,7 @@ The sharpest distinction is the data path: IBM took the hard route — computer 
 | **Agent orchestration** | Google Cloud Agent Builder | Plan → call tools → respond loop |
 | **Partner "superpower" (MCP)** | MongoDB Atlas (Vector Search) | Context store + semantic retrieval, exposed via MongoDB's MCP server |
 | **Match data** | [StatsBomb Open Data](https://github.com/statsbomb/open-data) + [`statsbombpy`](https://github.com/statsbomb/statsbombpy) | Free, no auth; JSON events per match (**attribution required**) |
-| **Text-to-speech** | Google Cloud Text-to-Speech *(default)* / ElevenLabs *(expressive option)* | Optional but high-impact for the demo |
+| **Text-to-speech** | Google Cloud TTS — Chirp 3: HD voices *(default)* / Gemini-TTS *(promptable, expressive)* | Per-event importance drives speaking-rate; sequential two-voice lead + analyst |
 | **Backend** | Python | Event replayer + orchestration glue |
 | **Frontend** | HTML/JS *(or lightweight React)* | Language + match selection, synced text/audio |
 | **Hosting** | Google Cloud Run | Provides the public demo URL |
@@ -93,7 +93,7 @@ flowchart TD
 
     AGENT -->|retrieve context| MCP
     MCP <--> CTX
-    AGENT -->|commentary line<br/>in chosen language| TTS[Text-to-Speech<br/>Google Cloud TTS / ElevenLabs]
+    AGENT -->|commentary line<br/>in chosen language| TTS[Text-to-Speech<br/>Chirp 3: HD / Gemini-TTS<br/>intensity → speaking rate]
     TTS --> UI
     AGENT -->|text| UI
 ```
@@ -128,6 +128,10 @@ flowchart TD
 │       ├── pacing.md · energy.md    #   when to speak · how to pitch it
 │       └── language.md              #   generate natively in the target language
 │
+├── mlangcast_agent/                 # compliant Gemini + Agent Builder (ADK) agent
+│   ├── agent.py                     #   root_agent + MongoDB MCP toolset (npx mongodb-mcp-server); `adk web`/deploy
+│   └── __init__.py
+│
 ├── context/
 │   ├── seed_context.py              # build + seed kind:player/team/term docs into MongoDB
 │   └── player_stats.py              # Feature 1 data — aggregate WC2022 player form → docs
@@ -136,8 +140,8 @@ flowchart TD
 │   └── commentary_pipeline.py       # end-to-end glue: replay → context → agent → TTS
 │
 ├── tts/
-│   ├── speak.py                     # single-voice Google Cloud TTS (REST + GOOGLE_API_KEY)
-│   └── multispeaker.py              # Feature 2 audio — sequential two-voice synthesis
+│   ├── speak.py                     # single-voice Cloud TTS (Chirp 3: HD; GOOGLE_TTS_API_KEY); event importance → speaking rate
+│   └── multispeaker.py              # Feature 2 audio — Path A Gemini-TTS (expressive) / Path B Chirp 3: HD, fail-safe
 │
 ├── web/                             # minimal Flask UI (pick language + match, SSE stream)
 │   ├── app.py
@@ -164,7 +168,7 @@ flowchart TD
 - Python 3.10+
 - A Google Cloud project with Gemini 3 + Agent Builder access
 - A MongoDB Atlas cluster with Vector Search enabled
-- (Optional) An ElevenLabs API key for expressive voices
+- (Optional) `GOOGLE_TTS_API_KEY` — a Cloud key restricted to Text-to-Speech (Gemini uses `GOOGLE_API_KEY`); set `GEMINI_TTS=1` to use Gemini-TTS voices
 
 **Run locally**
 ```bash
@@ -172,7 +176,7 @@ git clone <your-repo-url>
 cd <repo>
 pip install -r requirements.txt
 
-cp .env.example .env            # add GOOGLE_*, MONGODB_URI, (optional) ELEVENLABS_API_KEY
+cp .env.example .env            # GOOGLE_API_KEY, GOOGLE_TTS_API_KEY, GEMINI_MODEL, MONGODB_URI
 
 python data/loader.py --match-id <STATSBOMB_MATCH_ID>   # cache a demo match
 python context/seed_context.py                          # populate MongoDB context store
@@ -197,6 +201,8 @@ Match event data is provided free by **StatsBomb** under their public data user 
 The hackathon demo is scoped to the **2022 World Cup final** and the Argentina/France player pool. Player-form context is derived by aggregating cached StatsBomb events across whichever WC 2022 matches are supplied to `context.player_stats`; for the fastest local demo, the final alone works, and for fuller tournament color you can cache and pass all Argentina/France match ids.
 
 The ingestion and document schema are not final-only: they accept any cached match list and emit the same `kind: "player"` context documents for MongoDB retrieval.
+
+The web UI also ships with additional **lower-league** matches cached for variety — Major League Soccer (Inter Miami), Ligue 1 (PSG), and the Indian Super League — each selectable for commentary in any supported language, which is exactly the "no commentator otherwise" use case.
 
 ## Roadmap
 

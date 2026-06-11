@@ -337,14 +337,26 @@ class CommentaryAgent:
         return self._generate_text_prompt(user)
 
     def _generate_color(self, ev: dict, context: Optional[dict] = None) -> Optional[str]:
-        """Generate one analyst color line for a lull."""
-        return self.color_commentator.comment(
+        """Generate one analyst color line for a lull.
+
+        Per-player spacing: skip if the player on the ball was already profiled
+        within the color commentator's min_player_gap_s, so we don't re-profile the
+        same player every quiet stretch (variety over repetition).
+        """
+        player = (ev.get("player") or {}).get("name", "")
+        seconds = self.state.match_seconds()
+        if player and self.color_commentator.recently_profiled(player, seconds):
+            return None
+        line = self.color_commentator.comment(
             ev,
             self.state.as_prompt_dict(),
             context_client=self.context_client,
             tallies=self.tallies,
             context=context,
         )
+        if line and player:
+            self.color_commentator.mark_profiled(player, seconds)
+        return line
 
     def _record_item(self, item: CommentaryItem) -> CommentaryItem:
         """Update pacing history after a line/script has been emitted."""
